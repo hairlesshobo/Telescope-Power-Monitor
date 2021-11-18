@@ -1,0 +1,7 @@
+{
+    "board": "arduino:avr:uno",
+    "port": "COM12",
+    "sketch": "Firmware.ino",
+    "output": "output",
+    "programmer": "arduino:arduinoasisp"
+}
