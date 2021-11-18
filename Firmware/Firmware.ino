@@ -41,13 +41,36 @@
 
 #define ENV_WRITE_DELAY 2500
 
+
+// Constants
 const String VERSION = "2.0";
+
+const int mVperAmp = 100; // use 100 for 20A Module and 66 for 30A Module
+
+const int ACSoffset = 2500;
+
+// Pin Definitions
 const int PIN_VOLTAGE = A0;
 const int PIN_BATT_AMPERAGE = A1;
-// const int PIN_
+const int PIN_LOAD_AMPERAGE = A2;
+const int PIN_SOLAR_AMPERAGE = A3;
+// const int PIN_SDA = A4;
+// const int PIN_SCL = A5;
+
+// const int PIN_RX = 0;
+// const int PIN_TX = 1;
+const int PIN_TOGGLE_TELESCOPE_OUTPUT_BUTTON = 2;
+const int PIN_TOGGLE_DEHUMIDIFIER_OUTPUT_BUTTON = 3;
+const int PIN_TELESCOPE_OUTPUT_RELAY = 4;
+const int PIN_DEHUMIDIFIER_OUTPUT_RELAY = 5;
+const int PIN_AUX_OUTPUT_RELAY = 6;
 const int PIN_DHT = 7;
-int mVperAmp = 100; // use 100 for 20A Module and 66 for 30A Module
-int ACSoffset = 2500;
+const int PIN_AC_INPUT_RELAY = 8;
+const int PIN_DEHUMIDIFIER_ENABLED_LED = 9;
+const int PIN_SD_SELECT = 10;
+// const int PIN_ICSP_MOSI = 11;
+// const int PIN_ICSP_MISO = 12;
+// const int PIN_ICSP_SCK = 13;
 
 
 /**
@@ -97,11 +120,25 @@ struct ConfigObject
   int R2Actual;
 
   /**
-   * @brief Offset value to add to amperage digital readings
+   * @brief Offset value to add to battery amperage digital readings
    * 
    * Valid range: -5 to 5 in steps of 1
    */
-  int AmpDigitalOffset;
+  int AmpDigitalOffset1;
+
+  /**
+   * @brief Offset value to add to load amperage digital readings
+   * 
+   * Valid range: -5 to 5 in steps of 1
+   */
+  int AmpDigitalOffset2;
+
+  /**
+   * @brief Offset value to add to solar amperage digital readings
+   * 
+   * Valid range: -5 to 5 in steps of 1
+   */
+  int AmpDigitalOffset3;
 
   /**
    * @brief Fixed value that is added to the temperate reading, can be negative
@@ -113,6 +150,21 @@ struct ConfigObject
    */
   float HumidityCalibration;
 
+  /**
+   * @brief Humidity level, in percentage, above which the dehumidifer should be activated
+   */
+  int TargetHumidity;
+
+  /**
+   * @brief Humidity level, in percentage, above or below the "TargetHumidity" required to change dehumdifier state. 
+   * 
+   * The value provided is divided in two and added/subtracted to the "TargetHumidity" above. 
+   * 
+   * @example If the TargetHumidity is set to 60, and this Hysterisis value is set to 4, the dehumidifer will
+   * continue running until the humidity falls below 58, and will not re-activate until after it has climbed
+   * higher than 62. 
+   */
+  int HumidityHysterisis;
 } 
 
 /**
@@ -126,9 +178,13 @@ defaultConfig = {
   0.0,   // VoltageCalibration
   10000, // R1Actual
   22000, // R2Actual
-  0,     // AmpDigitalOffset
+  0,     // AmpDigitalOffset1
+  0,     // AmpDigitalOffset2
+  0,     // AmpDigitalOffset3
   0.0,   // TemperatureCalibration
-  0.0    // HumidityCalibration
+  0.0,   // HumidityCalibration
+  60,    // TargetHumidity
+  4,     // HumidityHysterisis
 };
 
 
@@ -142,9 +198,19 @@ defaultConfig = {
 long uptimeSeconds;
 
 /**
- * @brief Array holding all readings of amperage to be averaged
+ * @brief Array holding all readings of battery amperage to be averaged
  */
-float* amps = 0;
+float* battery_amps = 0;
+
+/**
+ * @brief Array holding all readings of load amperage to be averaged
+ */
+float* load_amps = 0;
+
+/**
+ * @brief Array holding all readings of solar amperage to be averaged
+ */
+float* solar_amps = 0;
 
 /**
  * @brief Array holding all readings of voltage to be averaged
@@ -165,6 +231,11 @@ float humidity = 0;
  * @brief Milliseconds of last time status was written to serial port
  */
 long lastWriteTime = 0;
+
+/**
+ * @brief Last voltage/amperage sensor read time
+ */
+long lastReadTime = 0;
 
 /**
  * @brief Milliseconds of last time DHT (temp/hum) sensor was probed
@@ -221,7 +292,12 @@ void setup()
   uptimeSeconds = 0;
 
   allocateArrays();
+
+  pinMode(PIN_DEHUMIDIFIER_ENABLED_LED, OUTPUT);
+  // digitalWrite(PIN_DEHUMIDIFIER_ENABLED_LED, HIGH);
 }
+
+int lastStatus = LOW;
 
 /**
  * @brief Main loop
@@ -243,25 +319,48 @@ void loop()
 
   if (enableReadings)
   {
-    pushReading(volts, getVoltage(PIN_VOLTAGE));
-    pushReading(amps, getAmperage(PIN_BATT_AMPERAGE));
+    if (lastReadTime == 0 || (millis() - lastReadTime) >= config.UpdateFrequency)
+    {
+      pushReading(volts, getVoltage(PIN_VOLTAGE));
+      pushReading(battery_amps, getAmperage(PIN_BATT_AMPERAGE));
+      pushReading(battery_amps, getAmperage(PIN_LOAD_AMPERAGE));
+      pushReading(battery_amps, getAmperage(PIN_SOLAR_AMPERAGE));
+      // TODO: calculate AC amperage
 
-    // pushReading(volts, 0.0);
-    // pushReading(amps, 0.0);
+      // pushReading(volts, 0.0);
+      // pushReading(battery_amps, 0.0);
+
+      lastReadTime = millis();
+    }
 
     if (lastDhtReadTime == 0 || (millis() - lastDhtReadTime) >= ENV_WRITE_DELAY)
     {
       readDht(PIN_DHT);
-      lastDhtReadTime = millis();
-
       writeEnvironmentStatus();
+
+      lastDhtReadTime = millis();
     }
   
     // we only want to send the current values periodically, even though we refresh internally multiple times per second
     if (((millis() - lastWriteTime) >= (config.WriteInterval * 1000)) || lastWriteTime == 0)
+    {
       writeStatus();
+
+      lastWriteTime = millis();
+
+      if (lastStatus == LOW)
+      {
+        digitalWrite(PIN_DEHUMIDIFIER_ENABLED_LED, HIGH);
+        lastStatus = HIGH;
+      }
+      else
+      {
+        digitalWrite(PIN_DEHUMIDIFIER_ENABLED_LED, LOW);
+        lastStatus = LOW;
+      }
+    }
     
-    delay(1000 / config.UpdateFrequency);
+    // delay(1000 / config.UpdateFrequency);
   }
 }
 
@@ -270,10 +369,10 @@ void loop()
  */
 void allocateArrays()
 {
-  amps = new float[config.AverageReadingCount];
+  battery_amps = new float[config.AverageReadingCount];
   volts = new float[config.AverageReadingCount];
 
-  initializeArray(amps);
+  initializeArray(battery_amps);
   initializeArray(volts); 
 }
 
@@ -291,8 +390,8 @@ void initializeArray(float* readingArray)
  */
 void reallocateArrays()
 {
-  if (amps != 0)
-    delete [] amps;
+  if (battery_amps != 0)
+    delete [] battery_amps;
 
   if (volts != 0)
     delete [] volts;
@@ -397,7 +496,9 @@ void handleSerialCommand(String* commandLine)
       printConfigEntry(F("VoltageCalibration"), config.VoltageCalibration);
       printConfigEntry(F("R1Actual"), config.R1Actual);
       printConfigEntry(F("R2Actual"), config.R2Actual);
-      printConfigEntry(F("AmpDigitalOffset"), config.AmpDigitalOffset);
+      printConfigEntry(F("AmpDigitalOffset1"), config.AmpDigitalOffset1);
+      printConfigEntry(F("AmpDigitalOffset2"), config.AmpDigitalOffset2);
+      printConfigEntry(F("AmpDigitalOffset3"), config.AmpDigitalOffset3);
       printConfigEntry(F("TemperatureCalibration"), config.TemperatureCalibration);
       printConfigEntry(F("HumidityCalibration"), config.HumidityCalibration);
     }
@@ -458,12 +559,28 @@ void handleSerialCommand(String* commandLine)
       printConfigEntry(F("R2Actual"), config.R2Actual);
     }
 
-    else if (commandLine->startsWith(F("AmpDigitalOffset")))
+    else if (commandLine->startsWith(F("AmpDigitalOffset1")))
     {
       *commandLine = commandLine->substring(17);
-      config.AmpDigitalOffset = commandLine->toInt();
+      config.AmpDigitalOffset1 = commandLine->toInt();
       
-      printConfigEntry(F("AmpDigitalOffset"), config.AmpDigitalOffset);
+      printConfigEntry(F("AmpDigitalOffset1"), config.AmpDigitalOffset1);
+    }
+
+    else if (commandLine->startsWith(F("AmpDigitalOffset2")))
+    {
+      *commandLine = commandLine->substring(17);
+      config.AmpDigitalOffset2 = commandLine->toInt();
+      
+      printConfigEntry(F("AmpDigitalOffset2"), config.AmpDigitalOffset2);
+    }
+
+        else if (commandLine->startsWith(F("AmpDigitalOffset3")))
+    {
+      *commandLine = commandLine->substring(17);
+      config.AmpDigitalOffset3 = commandLine->toInt();
+      
+      printConfigEntry(F("AmpDigitalOffset3"), config.AmpDigitalOffset3);
     }
 
     else if (commandLine->startsWith(F("TemperatureCalibration")))
@@ -529,16 +646,14 @@ void writeStatus()
   Serial.print(F("|"));
   
   // output amperage stats
-  Serial.print(getAvgReading(amps));
+  Serial.print(getAvgReading(battery_amps));
   Serial.print(F("|"));
   
-  Serial.print(getMinReading(amps));
+  Serial.print(getMinReading(battery_amps));
   Serial.print(F("|"));
   
-  Serial.print(getMaxReading(amps));
+  Serial.print(getMaxReading(battery_amps));
   Serial.println();
-
-  lastWriteTime = millis();
 }
 
 void writeEnvironmentStatus()
@@ -576,7 +691,9 @@ float getAmperage(int pin)
   int ampSensorValue = analogRead(pin);
 
   // calibration logic.. rather rudimentary
-  ampSensorValue += config.AmpDigitalOffset;
+  ampSensorValue += config.AmpDigitalOffset1;
+
+  // TODO: add ability to specify which offset to use
 
   if (ampSensorValue > 1024)
     ampSensorValue = 1024;
