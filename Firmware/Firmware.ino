@@ -213,9 +213,6 @@ void setup()
   currentDtm = new DateTime(2021, 11, 19, 13, 27, 0);
 }
 
-// TODO: remove for final code
-int lastStatus = LOW;
-
 /**
  * @brief Main loop
  */
@@ -237,12 +234,11 @@ void loop()
   // update the clock
   if (lastTick == 0 || (millis() - lastTick) >= 1000)
   {
-    uptimeSeconds = millis() / 1000L;
+    uptimeSeconds = millis() / 1000;
     updateDtm();
 
     // TODO: For testing only.. remove for final code
-    lastStatus = !lastStatus;
-    digitalWrite(PIN_DEHUMIDIFIER_ENABLED_LED, lastStatus);
+    digitalWrite(PIN_DEHUMIDIFIER_ENABLED_LED, !digitalRead(PIN_DEHUMIDIFIER_ENABLED_LED));
 
     writeSystemStatus();
 
@@ -283,10 +279,6 @@ void loop()
 
       lastWriteTime = millis();
     }
-
-
-    
-    // delay(1000 / config.UpdateFrequency);
   }
 }
 
@@ -299,11 +291,13 @@ void allocateArrays()
   amps_battery = new float[config.AverageReadingCount];
   amps_load = new float[config.AverageReadingCount];
   amps_solar = new float[config.AverageReadingCount];
+  amps_ac = new float[config.AverageReadingCount];
 
   initializeArray(volts); 
   initializeArray(amps_battery);
   initializeArray(amps_load);
   initializeArray(amps_solar);
+  initializeArray(amps_ac);
 }
 
 /**
@@ -331,6 +325,9 @@ void reallocateArrays()
 
   if (amps_solar != 0)
     delete [] amps_solar;
+
+  if (amps_ac != 0)
+    delete [] amps_ac;
 
   allocateArrays();
 }
@@ -684,6 +681,8 @@ void writeSystemStatus()
   Serial.print(F("|"));
 
   Serial.print(getFreeMemory());
+  Serial.print(F("|"));
+  Serial.print(digitalRead(PIN_DEHUMIDIFIER_ENABLED_LED));
   Serial.println();
 }
 
