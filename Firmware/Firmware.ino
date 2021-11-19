@@ -19,7 +19,13 @@
  */
 
 // Output Format:
-// <UptimeSeconds>|<AvgVoltage>|<MinVoltage>|<MaxVoltage>|<AvgAmperage>|<MinAmperage>|<MaxAmperage>|<CurrentTemperatureC>|<CurrentHumidityPercent>
+// <ISO_DTM>|STAT|<UptimeSeconds>|<BytesFreeMem>
+// <ISO_DTM>|VOLT|<AvgVoltage>|<MinVoltage>|<MaxVoltage>
+// <ISO_DTM>|BATT|<AvgAmperage>|<MinAmperage>|<MaxAmperage>
+// <ISO_DTM>|LOAD|<AvgAmperage>|<MinAmperage>|<MaxAmperage>
+// <ISO_DTM>|SOLAR|<AvgAmperage>|<MinAmperage>|<MaxAmperage>
+// <ISO_DTM>|AC|<AvgAmperage>|<MinAmperage>|<MaxAmperage>
+// <ISO_DTM>|ENV|<CurrentTemperatureC>|<CurrentHumidityPercent>
 
 // Config Options:
 // AverageReadingCount => AvgRdCt
@@ -28,16 +34,20 @@
 // VoltageCalibration => VCal
 // R1Actual => R1Val
 // R2Actual => R2Val
-// AmpDigitalOffset => ADO
+// AmpDigitalOffset1 => ADO1
+// AmpDigitalOffset2 => ADO2
+// AmpDigitalOffset3 => ADO3
 // TemperatureCalibration => TCal
 // HumidityCalibration => HCal
 
+#include "ConfigObject.h"
+
 #include "SimpleDHT.h"
-// #include "RTClib.h"
+#include "RTClib.h"
 
 #include <EEPROM.h>
-// #include <SPI.h>
-// #include <SD.h>
+#include <SPI.h>
+#include <SD.h>
 
 #define ENV_WRITE_DELAY 2500
 
@@ -45,147 +55,32 @@
 // Constants
 const String VERSION = "2.0";
 
-const int mVperAmp = 100; // use 100 for 20A Module and 66 for 30A Module
+const uint8_t mVperAmp = 100; // use 100 for 20A Module and 66 for 30A Module
 
-const int ACSoffset = 2500;
+const uint16_t ACSoffset = 2500;
 
 // Pin Definitions
-const int PIN_VOLTAGE = A0;
-const int PIN_BATT_AMPERAGE = A1;
-const int PIN_LOAD_AMPERAGE = A2;
-const int PIN_SOLAR_AMPERAGE = A3;
-// const int PIN_SDA = A4;
-// const int PIN_SCL = A5;
+const uint8_t PIN_VOLTAGE = A0;
+const uint8_t PIN_BATT_AMPERAGE = A1;
+const uint8_t PIN_LOAD_AMPERAGE = A2;
+const uint8_t PIN_SOLAR_AMPERAGE = A3;
+// const uint8_t PIN_SDA = A4;
+// const uint8_t PIN_SCL = A5;
 
-// const int PIN_RX = 0;
-// const int PIN_TX = 1;
-const int PIN_TOGGLE_TELESCOPE_OUTPUT_BUTTON = 2;
-const int PIN_TOGGLE_DEHUMIDIFIER_OUTPUT_BUTTON = 3;
-const int PIN_TELESCOPE_OUTPUT_RELAY = 4;
-const int PIN_DEHUMIDIFIER_OUTPUT_RELAY = 5;
-const int PIN_AUX_OUTPUT_RELAY = 6;
-const int PIN_DHT = 7;
-const int PIN_AC_INPUT_RELAY = 8;
-const int PIN_DEHUMIDIFIER_ENABLED_LED = 9;
-const int PIN_SD_SELECT = 10;
-// const int PIN_ICSP_MOSI = 11;
-// const int PIN_ICSP_MISO = 12;
-// const int PIN_ICSP_SCK = 13;
-
-
-/**
- * @brief Object used to store the configuration in the EEPROM
- */
-struct ConfigObject
-{
-  /**
-   * @brief If set to the "magic number" -1337, the EEPROM has been initialized
-   */
-  int Defined;
-
-  /**
-   * @brief How many readings should be averaged together
-   * 
-   * Valid range: 3 - 128
-   */
-  int AverageReadingCount;
-
-  /**
-   * @brief How many times per second voltage/current values should be read
-   * 
-   * Valid range: 1 - 20
-   */
-  float UpdateFrequency;
-  
-  /**
-   * @brief How often (seconds) should the current status be written to serial
-   * 
-   * Valid range: 0.5 - 15 in 0.5 second steps
-   */
-  float WriteInterval;
-
-  /**
-   * @brief Fix value to add to voltage reading, can be negative
-   */
-  float VoltageCalibration; // 0.0585 
-
-  /**
-   * @brief Measured resistance of R1 resistor in voltage divider
-   */
-  int R1Actual;
-
-  /**
-   * @brief Measured resistance of R2 resistor in voltage divider
-   */
-  int R2Actual;
-
-  /**
-   * @brief Offset value to add to battery amperage digital readings
-   * 
-   * Valid range: -5 to 5 in steps of 1
-   */
-  int AmpDigitalOffset1;
-
-  /**
-   * @brief Offset value to add to load amperage digital readings
-   * 
-   * Valid range: -5 to 5 in steps of 1
-   */
-  int AmpDigitalOffset2;
-
-  /**
-   * @brief Offset value to add to solar amperage digital readings
-   * 
-   * Valid range: -5 to 5 in steps of 1
-   */
-  int AmpDigitalOffset3;
-
-  /**
-   * @brief Fixed value that is added to the temperate reading, can be negative
-   */
-  float TemperatureCalibration;
-
-  /**
-   * @brief Fixed value that is added to the humidity reading, can be negative
-   */
-  float HumidityCalibration;
-
-  /**
-   * @brief Humidity level, in percentage, above which the dehumidifer should be activated
-   */
-  int TargetHumidity;
-
-  /**
-   * @brief Humidity level, in percentage, above or below the "TargetHumidity" required to change dehumdifier state. 
-   * 
-   * The value provided is divided in two and added/subtracted to the "TargetHumidity" above. 
-   * 
-   * @example If the TargetHumidity is set to 60, and this Hysterisis value is set to 4, the dehumidifer will
-   * continue running until the humidity falls below 58, and will not re-activate until after it has climbed
-   * higher than 62. 
-   */
-  int HumidityHysterisis;
-} 
-
-/**
- * @brief Default values to be used when EEPROM is first initialized
- */
-defaultConfig = {
-  -1337, // Defined
-  15,    // AverageReadingCount
-  4,     // UpdateFrequency
-  1.0,   // WriteInterval
-  0.0,   // VoltageCalibration
-  10000, // R1Actual
-  22000, // R2Actual
-  0,     // AmpDigitalOffset1
-  0,     // AmpDigitalOffset2
-  0,     // AmpDigitalOffset3
-  0.0,   // TemperatureCalibration
-  0.0,   // HumidityCalibration
-  60,    // TargetHumidity
-  4,     // HumidityHysterisis
-};
+// const uint8_t PIN_RX = 0;
+// const uint8_t PIN_TX = 1;
+const uint8_t PIN_TOGGLE_TELESCOPE_OUTPUT_BUTTON = 2;
+const uint8_t PIN_TOGGLE_DEHUMIDIFIER_OUTPUT_BUTTON = 3;
+const uint8_t PIN_TELESCOPE_OUTPUT_RELAY = 4;
+const uint8_t PIN_DEHUMIDIFIER_OUTPUT_RELAY = 5;
+const uint8_t PIN_AUX_OUTPUT_RELAY = 6;
+const uint8_t PIN_DHT = 7;
+const uint8_t PIN_AC_INPUT_RELAY = 8;
+const uint8_t PIN_DEHUMIDIFIER_ENABLED_LED = 9;
+const uint8_t PIN_SD_SELECT = 10;
+// const uint8_t PIN_ICSP_MOSI = 11;
+// const uint8_t PIN_ICSP_MISO = 12;
+// const uint8_t PIN_ICSP_SCK = 13;
 
 
 
@@ -195,22 +90,27 @@ defaultConfig = {
  * This relies on the internal clock of the ATMega chip, therfore is inexact. 
  * Additionally, this will overflow after roughly 68 years ;)
  */
-long uptimeSeconds;
+uint32_t uptimeSeconds;
 
 /**
  * @brief Array holding all readings of battery amperage to be averaged
  */
-float* battery_amps = 0;
+float* amps_battery = 0;
 
 /**
  * @brief Array holding all readings of load amperage to be averaged
  */
-float* load_amps = 0;
+float* amps_load = 0;
 
 /**
  * @brief Array holding all readings of solar amperage to be averaged
  */
-float* solar_amps = 0;
+float* amps_solar = 0;
+
+/**
+ * @brief Array holding all readings of AC amperage to be averaged
+ */
+float* amps_ac = 0;
 
 /**
  * @brief Array holding all readings of voltage to be averaged
@@ -230,17 +130,22 @@ float humidity = 0;
 /** 
  * @brief Milliseconds of last time status was written to serial port
  */
-long lastWriteTime = 0;
+uint32_t lastWriteTime = 0;
 
 /**
  * @brief Last voltage/amperage sensor read time
  */
-long lastReadTime = 0;
+uint32_t lastReadTime = 0;
+
+/**
+ * @brief Milliseconds of last time the system clock and status was updated
+ */
+uint32_t lastTick = 0;
 
 /**
  * @brief Milliseconds of last time DHT (temp/hum) sensor was probed
  */
-long lastDhtReadTime = 0;
+uint32_t lastDhtReadTime = 0;
 
 /**
  * @brief String object used to hold input read from serial port
@@ -267,26 +172,34 @@ ConfigObject config;
  */
 SimpleDHT22 dht(PIN_DHT);
 
-// Sd2Card card;
-// SdVolume volume;
-// SdFile root;
-// RTC_PCF8523 rtc;
+/**
+ * @brief Most recent DTM as read from the RTC
+ */
+DateTime* currentDtm;
+
+Sd2Card card;
+SdVolume volume;
+SdFile root;
+
+RTC_PCF8523 rtc;
 
 /**
  * @brief Initial board setup
  */
 void setup() 
 {
+  inputString.reserve(30);
+
   Serial.begin(115200);  
   
-  ReadConfig();
+  readConfig();
 
   // check for magic number
   if (config.Defined != -1337)
   {
-    WriteDefaultConfig();
+    writeDefaultConfig();
 
-    ReadConfig();
+    readConfig();
   }
 
   uptimeSeconds = 0;
@@ -295,8 +208,12 @@ void setup()
 
   pinMode(PIN_DEHUMIDIFIER_ENABLED_LED, OUTPUT);
   // digitalWrite(PIN_DEHUMIDIFIER_ENABLED_LED, HIGH);
+
+  // TODO: Remove from final code
+  currentDtm = new DateTime(2021, 11, 19, 13, 27, 0);
 }
 
+// TODO: remove for final code
 int lastStatus = LOW;
 
 /**
@@ -317,25 +234,39 @@ void loop()
     stringComplete = false;
   }
 
+  // update the clock
+  if (lastTick == 0 || (millis() - lastTick) >= 1000)
+  {
+    uptimeSeconds = millis() / 1000L;
+    updateDtm();
+
+    // TODO: For testing only.. remove for final code
+    lastStatus = !lastStatus;
+    digitalWrite(PIN_DEHUMIDIFIER_ENABLED_LED, lastStatus);
+
+    writeSystemStatus();
+
+    lastTick = millis();
+  }
+
   if (enableReadings)
   {
     if (lastReadTime == 0 || (millis() - lastReadTime) >= config.UpdateFrequency)
     {
       pushReading(volts, getVoltage(PIN_VOLTAGE));
-      pushReading(battery_amps, getAmperage(PIN_BATT_AMPERAGE));
-      pushReading(battery_amps, getAmperage(PIN_LOAD_AMPERAGE));
-      pushReading(battery_amps, getAmperage(PIN_SOLAR_AMPERAGE));
-      // TODO: calculate AC amperage
+      pushReading(amps_battery, getAmperage(PIN_BATT_AMPERAGE));
+      pushReading(amps_load, getAmperage(PIN_LOAD_AMPERAGE));
+      pushReading(amps_solar, getAmperage(PIN_SOLAR_AMPERAGE));
 
-      // pushReading(volts, 0.0);
-      // pushReading(battery_amps, 0.0);
+      // TODO: calculate AC amperage
+      pushReading(amps_ac, 0.0);
 
       lastReadTime = millis();
     }
 
     if (lastDhtReadTime == 0 || (millis() - lastDhtReadTime) >= ENV_WRITE_DELAY)
     {
-      readDht(PIN_DHT);
+      readDht(PIN_DHT, temperature, humidity);
       writeEnvironmentStatus();
 
       lastDhtReadTime = millis();
@@ -344,21 +275,16 @@ void loop()
     // we only want to send the current values periodically, even though we refresh internally multiple times per second
     if (((millis() - lastWriteTime) >= (config.WriteInterval * 1000)) || lastWriteTime == 0)
     {
-      writeStatus();
+      writeVoltStatus();
+      writeBattStatus();
+      writeLoadStatus();
+      writeSolarStatus();
+      writeAcStatus();
 
       lastWriteTime = millis();
-
-      if (lastStatus == LOW)
-      {
-        digitalWrite(PIN_DEHUMIDIFIER_ENABLED_LED, HIGH);
-        lastStatus = HIGH;
-      }
-      else
-      {
-        digitalWrite(PIN_DEHUMIDIFIER_ENABLED_LED, LOW);
-        lastStatus = LOW;
-      }
     }
+
+
     
     // delay(1000 / config.UpdateFrequency);
   }
@@ -369,11 +295,15 @@ void loop()
  */
 void allocateArrays()
 {
-  battery_amps = new float[config.AverageReadingCount];
   volts = new float[config.AverageReadingCount];
+  amps_battery = new float[config.AverageReadingCount];
+  amps_load = new float[config.AverageReadingCount];
+  amps_solar = new float[config.AverageReadingCount];
 
-  initializeArray(battery_amps);
   initializeArray(volts); 
+  initializeArray(amps_battery);
+  initializeArray(amps_load);
+  initializeArray(amps_solar);
 }
 
 /**
@@ -390,11 +320,17 @@ void initializeArray(float* readingArray)
  */
 void reallocateArrays()
 {
-  if (battery_amps != 0)
-    delete [] battery_amps;
+  if (amps_battery != 0)
+    delete [] amps_battery;
 
   if (volts != 0)
     delete [] volts;
+
+  if (amps_load != 0)
+    delete [] amps_load;
+
+  if (amps_solar != 0)
+    delete [] amps_solar;
 
   allocateArrays();
 }
@@ -402,7 +338,7 @@ void reallocateArrays()
 /**
  * @brief Read the config from the EEPROM
  */
-void ReadConfig()
+void readConfig()
 {
   // load the config from the EEPROM
   EEPROM.get(0, config);
@@ -411,7 +347,7 @@ void ReadConfig()
 /**
  * @brief Write the current config object to the EEPROM
  */
-void WriteConfig()
+void writeConfig()
 {
   // Write the current config to the EEPROM
   EEPROM.put(0, config);
@@ -420,7 +356,7 @@ void WriteConfig()
 /**
  * @brief Writes the default config values to the EEPROM
  */
-void WriteDefaultConfig()
+void writeDefaultConfig()
 {
   Serial.println(F("Writing default config to EEPROM"));
   EEPROM.put(0, defaultConfig);
@@ -603,15 +539,15 @@ void handleSerialCommand(String* commandLine)
   
   else if (commandLine->startsWith(F("SAVE")))
   {
-    WriteConfig();
+    writeConfig();
     Serial.println(F("EEPROM Written"));
   }
 
   
   else if (commandLine->startsWith(F("CLEAR")))
   {
-    WriteDefaultConfig();
-    ReadConfig();
+    writeDefaultConfig();
+    readConfig();
   }
 
   else if (commandLine->startsWith(F("PAUSE")))
@@ -625,14 +561,12 @@ void handleSerialCommand(String* commandLine)
   }
 }
 
-void writeStatus()
+void writeVoltStatus()
 {
-  uptimeSeconds = millis() / 1000;
-
-  Serial.print(uptimeSeconds);
+  Serial.print(currentDtm->timestamp());
   Serial.print(F("|"));
   
-  Serial.print(F("BATT"));
+  Serial.print(F("VOLT"));
   Serial.print(F("|"));
 
   // output voltage stats
@@ -643,24 +577,88 @@ void writeStatus()
   Serial.print(F("|"));
   
   Serial.print(getMaxReading(volts));
+  Serial.println();
+}
+
+void writeBattStatus()
+{
+  Serial.print(currentDtm->timestamp());
   Serial.print(F("|"));
   
+  Serial.print(F("BATT"));
+  Serial.print(F("|"));
+
   // output amperage stats
-  Serial.print(getAvgReading(battery_amps));
+  Serial.print(getAvgReading(amps_battery));
   Serial.print(F("|"));
   
-  Serial.print(getMinReading(battery_amps));
+  Serial.print(getMinReading(amps_battery));
   Serial.print(F("|"));
   
-  Serial.print(getMaxReading(battery_amps));
+  Serial.print(getMaxReading(amps_battery));
+  Serial.println();
+}
+
+void writeSolarStatus()
+{
+  Serial.print(currentDtm->timestamp());
+  Serial.print(F("|"));
+  
+  Serial.print(F("SOLAR"));
+  Serial.print(F("|"));
+
+  // output amperage stats
+  Serial.print(getAvgReading(amps_solar));
+  Serial.print(F("|"));
+  
+  Serial.print(getMinReading(amps_solar));
+  Serial.print(F("|"));
+  
+  Serial.print(getMaxReading(amps_solar));
+  Serial.println();
+}
+
+void writeAcStatus()
+{
+  Serial.print(currentDtm->timestamp());
+  Serial.print(F("|"));
+  
+  Serial.print(F("AC"));
+  Serial.print(F("|"));
+
+  // output amperage stats
+  Serial.print(getAvgReading(amps_ac));
+  Serial.print(F("|"));
+  
+  Serial.print(getMinReading(amps_ac));
+  Serial.print(F("|"));
+  
+  Serial.print(getMaxReading(amps_ac));
+  Serial.println();
+}
+
+void writeLoadStatus()
+{
+  Serial.print(currentDtm->timestamp());
+  Serial.print(F("|"));
+  
+  Serial.print(F("LOAD"));
+  Serial.print(F("|"));
+
+  // output amperage stats
+  Serial.print(getAvgReading(amps_load));
+  Serial.print(F("|"));
+  
+  Serial.print(getMinReading(amps_load));
+  Serial.print(F("|"));
+  
+  Serial.print(getMaxReading(amps_load));
   Serial.println();
 }
 
 void writeEnvironmentStatus()
 {
-  uptimeSeconds = millis() / 1000;
-
-  Serial.print(uptimeSeconds);
+  Serial.print(currentDtm->timestamp());
   Serial.print(F("|"));
 
   Serial.print(F("ENV"));
@@ -672,7 +670,21 @@ void writeEnvironmentStatus()
   
   Serial.print(humidity);
   Serial.println();
+}
 
+void writeSystemStatus()
+{
+  Serial.print(currentDtm->timestamp());
+  Serial.print(F("|"));
+
+  Serial.print(F("STAT"));
+  Serial.print(F("|"));
+
+  Serial.print(uptimeSeconds);
+  Serial.print(F("|"));
+
+  Serial.print(getFreeMemory());
+  Serial.println();
 }
 
 float getVoltage(int pin)
@@ -705,9 +717,9 @@ float getAmperage(int pin)
   return ((tmpVoltage - ACSoffset) / mVperAmp);
 }
 
-void readDht(int pin)
+void readDht(int pin, float temp, float hum)
 {
-  dht.read2(&temperature, &humidity, NULL);
+  dht.read2(&temp, &hum, NULL);
 }
 
 void pushReading(float* readingArray, float newValue)
@@ -762,3 +774,28 @@ float getMaxReading(float* readingArray)
   return lastMax;
 }
 
+void updateDtm()
+{
+  delete(currentDtm);
+  DateTime* tmpDtm = new DateTime(2021, 11, 19, 13, 27, 0);
+  currentDtm = new DateTime(tmpDtm->unixtime() + uptimeSeconds);
+  delete(tmpDtm);
+}
+
+#ifdef __arm__
+// should use uinstd.h to define sbrk but Due causes a conflict
+extern "C" char* sbrk(int incr);
+#else  // __ARM__
+extern char *__brkval;
+#endif  // __arm__
+
+int getFreeMemory() {
+  char top;
+#ifdef __arm__
+  return &top - reinterpret_cast<char*>(sbrk(0));
+#elif defined(CORE_TEENSY) || (ARDUINO > 103 && ARDUINO != 151)
+  return &top - __brkval;
+#else  // __arm__
+  return __brkval ? &top - __brkval : &top - __malloc_heap_start;
+#endif  // __arm__
+}
