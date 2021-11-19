@@ -40,17 +40,19 @@
 // TemperatureCalibration => TCal
 // HumidityCalibration => HCal
 
-#include "ConfigObject.h"
+#include "src/Helpers.h"
+#include "src/PrintHelpers.h"
+#include "src/Config.h"
+#include "src/State.h"
 
-#include "SimpleDHT.h"
-#include "RTClib.h"
+#include "src/lib/DHT/SimpleDHT.h"
+#include "src/lib/RTC/RTClib.h"
 
 #include <EEPROM.h>
 #include <SPI.h>
 #include <SD.h>
 
 #define ENV_WRITE_DELAY 2500
-
 
 // Constants
 const String VERSION = "2.0";
@@ -82,70 +84,30 @@ const uint8_t PIN_SD_SELECT = 10;
 // const uint8_t PIN_ICSP_MISO = 12;
 // const uint8_t PIN_ICSP_SCK = 13;
 
-
-
-/**
- * @brief Non-exact number of seconds the telescope power monitor has been powered up
- * 
- * This relies on the internal clock of the ATMega chip, therfore is inexact. 
- * Additionally, this will overflow after roughly 68 years ;)
- */
-uint32_t uptimeSeconds;
-
 /**
  * @brief Array holding all readings of battery amperage to be averaged
  */
-float* amps_battery = 0;
+float *amps_battery = 0;
 
 /**
  * @brief Array holding all readings of load amperage to be averaged
  */
-float* amps_load = 0;
+float *amps_load = 0;
 
 /**
  * @brief Array holding all readings of solar amperage to be averaged
  */
-float* amps_solar = 0;
+float *amps_solar = 0;
 
 /**
  * @brief Array holding all readings of AC amperage to be averaged
  */
-float* amps_ac = 0;
+float *amps_ac = 0;
 
 /**
  * @brief Array holding all readings of voltage to be averaged
  */
-float* volts = 0;
-
-/**
- * @brief Most recent temperature reading
- */
-float temperature = 0;
-
-/**
- * @brief Most recent humidity reading
- */
-float humidity = 0;
-
-/** 
- * @brief Milliseconds of last time status was written to serial port
- */
-uint32_t lastWriteTime = 0;
-
-/**
- * @brief Last voltage/amperage sensor read time
- */
-uint32_t lastReadTime = 0;
-
-/**
- * @brief Milliseconds of last time the system clock and status was updated
- */
-uint32_t lastTick = 0;
-
-/**
- * @brief Milliseconds of last time DHT (temp/hum) sensor was probed
- */
-uint32_t lastDhtReadTime = 0;
+float *volts = 0;
 
 /**
  * @brief String object used to hold input read from serial port
@@ -158,24 +120,30 @@ String inputString = "";
 bool stringComplete = false;
 
 /**
- * @brief If true, the firmware will read from all sensors on board
- */
-bool enableReadings = true;
-
-/**
  * @brief Object used to hold current configuration
  */
 ConfigObject config;
 
 /**
+ * @brief Object containing current state of controller
+ */
+State state = {
+    true,           // EnableReadings
+    false,          // TelescopeOutputEnabled
+    0,              // LastWriteTime
+    0,              // LastReadTime
+    0,              // LastTick
+    0,              // LastDhtReadTime
+    new DateTime(), // CurrentDtm
+    0,              // UptimeSeconds
+    0.0,            // Temperature
+    0.0,            // Humidity
+};
+
+/**
  * @brief Instance of DHT sensor object
  */
 SimpleDHT22 dht(PIN_DHT);
-
-/**
- * @brief Most recent DTM as read from the RTC
- */
-DateTime* currentDtm;
 
 Sd2Card card;
 SdVolume volume;
@@ -186,100 +154,115 @@ RTC_PCF8523 rtc;
 /**
  * @brief Initial board setup
  */
-void setup() 
+void setup()
 {
-  inputString.reserve(30);
+    inputString.reserve(30);
 
-  Serial.begin(115200);  
-  
-  readConfig();
+    Serial.begin(115200);
 
-  // check for magic number
-  if (config.Defined != -1337)
-  {
-    writeDefaultConfig();
+    initConfig();
+    allocateArrays();
+    setupPins();
 
+    // TODO: Remove from final code
+    state.CurrentDtm = new DateTime(2021, 11, 19, 13, 27, 0);
+}
+
+void setupPins()
+{
+    pinMode(PIN_TELESCOPE_OUTPUT_RELAY, OUTPUT);
+    pinMode(PIN_DEHUMIDIFIER_OUTPUT_RELAY, OUTPUT);
+    pinMode(PIN_AUX_OUTPUT_RELAY, OUTPUT);
+    pinMode(PIN_AC_INPUT_RELAY, OUTPUT);
+    pinMode(PIN_DEHUMIDIFIER_ENABLED_LED, OUTPUT);
+
+    digitalWrite(PIN_TELESCOPE_OUTPUT_RELAY, LOW);
+    digitalWrite(PIN_DEHUMIDIFIER_OUTPUT_RELAY, HIGH);
+    digitalWrite(PIN_AUX_OUTPUT_RELAY, HIGH);
+    digitalWrite(PIN_AC_INPUT_RELAY, HIGH);
+}
+
+void initConfig()
+{
     readConfig();
-  }
 
-  uptimeSeconds = 0;
+    // check for magic number
+    if (config.Defined != -1337)
+    {
+        writeDefaultConfig();
 
-  allocateArrays();
-
-  pinMode(PIN_DEHUMIDIFIER_ENABLED_LED, OUTPUT);
-  // digitalWrite(PIN_DEHUMIDIFIER_ENABLED_LED, HIGH);
-
-  // TODO: Remove from final code
-  currentDtm = new DateTime(2021, 11, 19, 13, 27, 0);
+        readConfig();
+    }
 }
 
 /**
  * @brief Main loop
  */
-void loop() 
+void loop()
 {
-  // print the string when a newline arrives:
-  if (stringComplete) 
-  {
-    inputString.replace("\r", "");
-    inputString.replace("\n", "");
-
-    handleSerialCommand(&inputString);
-    
-    // clear the string:
-    inputString = "";
-    stringComplete = false;
-  }
-
-  // update the clock
-  if (lastTick == 0 || (millis() - lastTick) >= 1000)
-  {
-    uptimeSeconds = millis() / 1000;
-    updateDtm();
-
-    // TODO: For testing only.. remove for final code
-    digitalWrite(PIN_DEHUMIDIFIER_ENABLED_LED, !digitalRead(PIN_DEHUMIDIFIER_ENABLED_LED));
-
-    writeSystemStatus();
-
-    lastTick = millis();
-  }
-
-  if (enableReadings)
-  {
-    if (lastReadTime == 0 || (millis() - lastReadTime) >= config.UpdateFrequency)
+    // print the string when a newline arrives:
+    if (stringComplete)
     {
-      pushReading(volts, getVoltage(PIN_VOLTAGE));
-      pushReading(amps_battery, getAmperage(PIN_BATT_AMPERAGE));
-      pushReading(amps_load, getAmperage(PIN_LOAD_AMPERAGE));
-      pushReading(amps_solar, getAmperage(PIN_SOLAR_AMPERAGE));
+        inputString.replace("\r", "");
+        inputString.replace("\n", "");
 
-      // TODO: calculate AC amperage
-      pushReading(amps_ac, 0.0);
+        handleSerialCommand(&inputString);
 
-      lastReadTime = millis();
+        // clear the string:
+        inputString = "";
+        stringComplete = false;
     }
 
-    if (lastDhtReadTime == 0 || (millis() - lastDhtReadTime) >= ENV_WRITE_DELAY)
+    // update the clock
+    if (state.LastTick == 0 || (millis() - state.LastTick) >= 1000)
     {
-      readDht(PIN_DHT, temperature, humidity);
-      writeEnvironmentStatus();
+        state.UptimeSeconds = millis() / 1000;
+        updateDtm();
 
-      lastDhtReadTime = millis();
+        // TODO: For testing only.. remove for final code
+        digitalWrite(PIN_DEHUMIDIFIER_ENABLED_LED, !digitalRead(PIN_DEHUMIDIFIER_ENABLED_LED));
+        // digitalWrite(PIN_TELESCOPE_OUTPUT_RELAY, !digitalRead(PIN_TELESCOPE_OUTPUT_RELAY));
+
+        printSystemStatus(state, config);
+
+        state.LastTick = millis();
     }
-  
-    // we only want to send the current values periodically, even though we refresh internally multiple times per second
-    if (((millis() - lastWriteTime) >= (config.WriteInterval * 1000)) || lastWriteTime == 0)
+
+    if (state.EnableReadings)
     {
-      writeVoltStatus();
-      writeBattStatus();
-      writeLoadStatus();
-      writeSolarStatus();
-      writeAcStatus();
+        if (state.LastReadTime == 0 || (millis() - state.LastReadTime) >= config.UpdateFrequency)
+        {
+            pushReading(volts, getVoltage(PIN_VOLTAGE));
+            pushReading(amps_battery, getAmperage(PIN_BATT_AMPERAGE, config.AmpDigitalOffset1));
+            pushReading(amps_load, getAmperage(PIN_LOAD_AMPERAGE, config.AmpDigitalOffset2));
+            pushReading(amps_solar, getAmperage(PIN_SOLAR_AMPERAGE, config.AmpDigitalOffset3));
 
-      lastWriteTime = millis();
+            // TODO: calculate AC amperage
+            pushReading(amps_ac, 0.0);
+
+            state.LastReadTime = millis();
+        }
+
+        if (state.LastDhtReadTime == 0 || (millis() - state.LastDhtReadTime) >= ENV_WRITE_DELAY)
+        {
+            readDht(PIN_DHT, state.Temperature, state.Humidity);
+            printEnvironmentStatus(state, config);
+
+            state.LastDhtReadTime = millis();
+        }
+
+        // we only want to send the current values periodically, even though we refresh internally multiple times per second
+        if (state.LastWriteTime == 0 || ((millis() - state.LastWriteTime) >= (config.WriteInterval * 1000)))
+        {
+            printVoltStatus(state, config, volts);
+            printAmpStatus(state, config, amps_battery, F("BATT"));
+            printAmpStatus(state, config, amps_load, F("LOAD"));
+            printAmpStatus(state, config, amps_solar, F("SOLAR"));
+            printAmpStatus(state, config, amps_ac, F("AC"));
+
+            state.LastWriteTime = millis();
+        }
     }
-  }
 }
 
 /**
@@ -287,26 +270,26 @@ void loop()
  */
 void allocateArrays()
 {
-  volts = new float[config.AverageReadingCount];
-  amps_battery = new float[config.AverageReadingCount];
-  amps_load = new float[config.AverageReadingCount];
-  amps_solar = new float[config.AverageReadingCount];
-  amps_ac = new float[config.AverageReadingCount];
+    volts = new float[config.AverageReadingCount];
+    amps_battery = new float[config.AverageReadingCount];
+    amps_load = new float[config.AverageReadingCount];
+    amps_solar = new float[config.AverageReadingCount];
+    amps_ac = new float[config.AverageReadingCount];
 
-  initializeArray(volts); 
-  initializeArray(amps_battery);
-  initializeArray(amps_load);
-  initializeArray(amps_solar);
-  initializeArray(amps_ac);
+    initializeArray(volts);
+    initializeArray(amps_battery);
+    initializeArray(amps_load);
+    initializeArray(amps_solar);
+    initializeArray(amps_ac);
 }
 
 /**
  * @brief Initializse the specified array with all empty values
  */
-void initializeArray(float* readingArray)
-{  
-  for (int i = 0; i < config.AverageReadingCount; i++)
-    readingArray[i] = 0.0;
+void initializeArray(float *readingArray)
+{
+    for (int i = 0; i < config.AverageReadingCount; i++)
+        readingArray[i] = 0.0;
 }
 
 /**
@@ -314,22 +297,22 @@ void initializeArray(float* readingArray)
  */
 void reallocateArrays()
 {
-  if (amps_battery != 0)
-    delete [] amps_battery;
+    if (amps_battery != 0)
+        delete[] amps_battery;
 
-  if (volts != 0)
-    delete [] volts;
+    if (volts != 0)
+        delete[] volts;
 
-  if (amps_load != 0)
-    delete [] amps_load;
+    if (amps_load != 0)
+        delete[] amps_load;
 
-  if (amps_solar != 0)
-    delete [] amps_solar;
+    if (amps_solar != 0)
+        delete[] amps_solar;
 
-  if (amps_ac != 0)
-    delete [] amps_ac;
+    if (amps_ac != 0)
+        delete[] amps_ac;
 
-  allocateArrays();
+    allocateArrays();
 }
 
 /**
@@ -337,8 +320,8 @@ void reallocateArrays()
  */
 void readConfig()
 {
-  // load the config from the EEPROM
-  EEPROM.get(0, config);
+    // load the config from the EEPROM
+    EEPROM.get(0, config);
 }
 
 /**
@@ -346,8 +329,8 @@ void readConfig()
  */
 void writeConfig()
 {
-  // Write the current config to the EEPROM
-  EEPROM.put(0, config);
+    // Write the current config to the EEPROM
+    EEPROM.put(0, config);
 }
 
 /**
@@ -355,8 +338,8 @@ void writeConfig()
  */
 void writeDefaultConfig()
 {
-  Serial.println(F("Writing default config to EEPROM"));
-  EEPROM.put(0, defaultConfig);
+    Serial.println(F("Writing default config to EEPROM"));
+    EEPROM.put(0, getDefaultConfig());
 }
 
 /*
@@ -365,436 +348,211 @@ void writeDefaultConfig()
  time loop() runs, so using delay inside loop can delay
  response.  Multiple bytes of data may be available.
  */
-void serialEvent() 
+void serialEvent()
 {
-  while (Serial.available()) 
-  {
-    // get the new byte:
-    char inChar = (char)Serial.read();
-    
-    // add it to the inputString:
-    inputString += inChar;
-    
-    // if the incoming character is a newline, set a flag
-    // so the main loop can do something about it:
-    if (inChar == '\n')
-      stringComplete = true;
-  }
+    while (Serial.available())
+    {
+        // get the new byte:
+        char inChar = (char)Serial.read();
+
+        // add it to the inputString:
+        inputString += inChar;
+
+        // if the incoming character is a newline, set a flag
+        // so the main loop can do something about it:
+        if (inChar == '\n')
+            stringComplete = true;
+    }
 }
 
-void printPipePair(const __FlashStringHelper *ifsh, const String &s)
+void handleSerialCommand(String *commandLine)
 {
-  Serial.print(ifsh);
-  Serial.print(F("|"));
-  Serial.print(s);
-}
-
-void printConfigEntryHeader(const String &s)
-{
-  Serial.print(F("CONFIG|"));
-  Serial.print(s);
-  Serial.print(F(": "));
-}
-
-void printConfigEntry(const String &s, int value)
-{
-  printConfigEntryHeader(s);
-  Serial.println(value);
-}
-
-void printConfigEntry(const String &s, float value)
-{
-  printConfigEntryHeader(s);
-  Serial.println(value);
-}
-
-void handleSerialCommand(String* commandLine)
-{
-  if (commandLine->startsWith(F("GET")))
-  {
-    // strip the GET from the beginning
-    *commandLine = commandLine->substring(4);
-
-    if (commandLine->startsWith(F("Version")))
+    if (commandLine->startsWith(F("GET")))
     {
-      Serial.print(F("VERSION: "));
-      Serial.println(VERSION);
-    }
-    
-    else if (commandLine->startsWith(F("Config")))
-    {
-      printConfigEntry(F("AverageReadingCount"), config.AverageReadingCount);
-      printConfigEntry(F("UpdateFrequency"), config.UpdateFrequency);
-      printConfigEntry(F("WriteInterval"), config.WriteInterval);
-      printConfigEntry(F("VoltageCalibration"), config.VoltageCalibration);
-      printConfigEntry(F("R1Actual"), config.R1Actual);
-      printConfigEntry(F("R2Actual"), config.R2Actual);
-      printConfigEntry(F("AmpDigitalOffset1"), config.AmpDigitalOffset1);
-      printConfigEntry(F("AmpDigitalOffset2"), config.AmpDigitalOffset2);
-      printConfigEntry(F("AmpDigitalOffset3"), config.AmpDigitalOffset3);
-      printConfigEntry(F("TemperatureCalibration"), config.TemperatureCalibration);
-      printConfigEntry(F("HumidityCalibration"), config.HumidityCalibration);
-    }
-  }
+        // strip the GET from the beginning
+        *commandLine = commandLine->substring(4);
 
-  
-  else if (commandLine->startsWith(F("SET")))
-  {
-    *commandLine = commandLine->substring(4);
+        if (commandLine->startsWith(F("Version")))
+            printPipePair(F("VERSION"), VERSION, true);
 
-    if (commandLine->startsWith(F("AverageReadingCount")))
-    {
-      *commandLine = commandLine->substring(20);
-      config.AverageReadingCount = commandLine->toInt();
-      
-      printConfigEntry(F("AverageReadingCount"), config.AverageReadingCount);
-
-      reallocateArrays();
+        else if (commandLine->startsWith(F("Config")))
+            printConfig(config);
     }
 
-    else if (commandLine->startsWith(F("UpdateFrequency")))
+    else if (commandLine->startsWith(F("SET")))
     {
-      *commandLine = commandLine->substring(16);
-      config.UpdateFrequency = commandLine->toFloat();
-      
-      printConfigEntry(F("UpdateFrequency"), config.UpdateFrequency);
-    }
-    
-    else if (commandLine->startsWith(F("WriteInterval")))
-    {
-      *commandLine = commandLine->substring(14);
-      config.WriteInterval = commandLine->toFloat();
-      
-      printConfigEntry(F("WriteInterval"), config.WriteInterval);
-    }
-    
-    else if (commandLine->startsWith(F("VoltageCalibration")))
-    {
-      *commandLine = commandLine->substring(19);
-      config.VoltageCalibration = commandLine->toFloat();
-      
-      printConfigEntry(F("VoltageCalibration"), config.VoltageCalibration);
-    }
-    
-    else if (commandLine->startsWith(F("R1Actual")))
-    {
-      *commandLine = commandLine->substring(9);
-      config.R1Actual = commandLine->toInt();
-      
-      printConfigEntry(F("R1Actual"), config.R1Actual);
-    }
+        *commandLine = commandLine->substring(4);
 
-    else if (commandLine->startsWith(F("R2Actual")))
-    {
-      *commandLine = commandLine->substring(9);
-      config.R2Actual = commandLine->toInt();
-      
-      printConfigEntry(F("R2Actual"), config.R2Actual);
-    }
+        if (commandLine->startsWith(F("AverageReadingCount")))
+        {
+            *commandLine = commandLine->substring(20);
+            config.AverageReadingCount = commandLine->toInt();
 
-    else if (commandLine->startsWith(F("AmpDigitalOffset1")))
-    {
-      *commandLine = commandLine->substring(17);
-      config.AmpDigitalOffset1 = commandLine->toInt();
-      
-      printConfigEntry(F("AmpDigitalOffset1"), config.AmpDigitalOffset1);
-    }
+            printConfigEntry(F("AverageReadingCount"), config.AverageReadingCount);
 
-    else if (commandLine->startsWith(F("AmpDigitalOffset2")))
-    {
-      *commandLine = commandLine->substring(17);
-      config.AmpDigitalOffset2 = commandLine->toInt();
-      
-      printConfigEntry(F("AmpDigitalOffset2"), config.AmpDigitalOffset2);
-    }
+            reallocateArrays();
+        }
+
+        else if (commandLine->startsWith(F("UpdateFrequency")))
+        {
+            *commandLine = commandLine->substring(16);
+            config.UpdateFrequency = commandLine->toFloat();
+
+            printConfigEntry(F("UpdateFrequency"), config.UpdateFrequency);
+        }
+
+        else if (commandLine->startsWith(F("WriteInterval")))
+        {
+            *commandLine = commandLine->substring(14);
+            config.WriteInterval = commandLine->toFloat();
+
+            printConfigEntry(F("WriteInterval"), config.WriteInterval);
+        }
+
+        else if (commandLine->startsWith(F("VoltageCalibration")))
+        {
+            *commandLine = commandLine->substring(19);
+            config.VoltageCalibration = commandLine->toFloat();
+
+            printConfigEntry(F("VoltageCalibration"), config.VoltageCalibration);
+        }
+
+        else if (commandLine->startsWith(F("R1Actual")))
+        {
+            *commandLine = commandLine->substring(9);
+            config.R1Actual = commandLine->toInt();
+
+            printConfigEntry(F("R1Actual"), config.R1Actual);
+        }
+
+        else if (commandLine->startsWith(F("R2Actual")))
+        {
+            *commandLine = commandLine->substring(9);
+            config.R2Actual = commandLine->toInt();
+
+            printConfigEntry(F("R2Actual"), config.R2Actual);
+        }
+
+        else if (commandLine->startsWith(F("AmpDigitalOffset1")))
+        {
+            *commandLine = commandLine->substring(17);
+            config.AmpDigitalOffset1 = commandLine->toInt();
+
+            printConfigEntry(F("AmpDigitalOffset1"), config.AmpDigitalOffset1);
+        }
+
+        else if (commandLine->startsWith(F("AmpDigitalOffset2")))
+        {
+            *commandLine = commandLine->substring(17);
+            config.AmpDigitalOffset2 = commandLine->toInt();
+
+            printConfigEntry(F("AmpDigitalOffset2"), config.AmpDigitalOffset2);
+        }
 
         else if (commandLine->startsWith(F("AmpDigitalOffset3")))
-    {
-      *commandLine = commandLine->substring(17);
-      config.AmpDigitalOffset3 = commandLine->toInt();
-      
-      printConfigEntry(F("AmpDigitalOffset3"), config.AmpDigitalOffset3);
+        {
+            *commandLine = commandLine->substring(17);
+            config.AmpDigitalOffset3 = commandLine->toInt();
+
+            printConfigEntry(F("AmpDigitalOffset3"), config.AmpDigitalOffset3);
+        }
+
+        else if (commandLine->startsWith(F("TemperatureCalibration")))
+        {
+            *commandLine = commandLine->substring(23);
+            config.TemperatureCalibration = commandLine->toFloat();
+
+            printConfigEntry(F("TemperatureCalibration"), config.TemperatureCalibration);
+        }
+
+        else if (commandLine->startsWith(F("HumidityCalibration")))
+        {
+            *commandLine = commandLine->substring(20);
+            config.HumidityCalibration = commandLine->toFloat();
+
+            printConfigEntry(F("HumidityCalibration"), config.HumidityCalibration);
+        }
     }
 
-    else if (commandLine->startsWith(F("TemperatureCalibration")))
+    else if (commandLine->startsWith(F("SAVE")))
     {
-      *commandLine = commandLine->substring(23);
-      config.TemperatureCalibration = commandLine->toFloat();
-      
-      printConfigEntry(F("TemperatureCalibration"), config.TemperatureCalibration);
+        writeConfig();
+        Serial.println(F("OK"));
     }
 
-    else if (commandLine->startsWith(F("HumidityCalibration")))
+    else if (commandLine->startsWith(F("CLEAR")))
     {
-      *commandLine = commandLine->substring(20);
-      config.HumidityCalibration = commandLine->toFloat();
-      
-      printConfigEntry(F("HumidityCalibration"), config.HumidityCalibration);
+        writeDefaultConfig();
+        readConfig();
+        Serial.println(F("OK"));
     }
-  }
 
-  
-  else if (commandLine->startsWith(F("SAVE")))
-  {
-    writeConfig();
-    Serial.println(F("EEPROM Written"));
-  }
+    else if (commandLine->startsWith(F("PAUSE")))
+    {
+        state.EnableReadings = false;
+        Serial.println(F("OK"));
+    }
 
-  
-  else if (commandLine->startsWith(F("CLEAR")))
-  {
-    writeDefaultConfig();
-    readConfig();
-  }
+    else if (commandLine->startsWith(F("RESUME")))
+    {
+        state.EnableReadings = true;
+        Serial.println(F("OK"));
+    }
 
-  else if (commandLine->startsWith(F("PAUSE")))
-  {
-    enableReadings = false;
-  }
-
-  else if (commandLine->startsWith(F("RESUME")))
-  {
-    enableReadings = true;
-  }
-}
-
-void writeVoltStatus()
-{
-  Serial.print(currentDtm->timestamp());
-  Serial.print(F("|"));
-  
-  Serial.print(F("VOLT"));
-  Serial.print(F("|"));
-
-  // output voltage stats
-  Serial.print(getAvgReading(volts));
-  Serial.print(F("|"));
-  
-  Serial.print(getMinReading(volts));
-  Serial.print(F("|"));
-  
-  Serial.print(getMaxReading(volts));
-  Serial.println();
-}
-
-void writeBattStatus()
-{
-  Serial.print(currentDtm->timestamp());
-  Serial.print(F("|"));
-  
-  Serial.print(F("BATT"));
-  Serial.print(F("|"));
-
-  // output amperage stats
-  Serial.print(getAvgReading(amps_battery));
-  Serial.print(F("|"));
-  
-  Serial.print(getMinReading(amps_battery));
-  Serial.print(F("|"));
-  
-  Serial.print(getMaxReading(amps_battery));
-  Serial.println();
-}
-
-void writeSolarStatus()
-{
-  Serial.print(currentDtm->timestamp());
-  Serial.print(F("|"));
-  
-  Serial.print(F("SOLAR"));
-  Serial.print(F("|"));
-
-  // output amperage stats
-  Serial.print(getAvgReading(amps_solar));
-  Serial.print(F("|"));
-  
-  Serial.print(getMinReading(amps_solar));
-  Serial.print(F("|"));
-  
-  Serial.print(getMaxReading(amps_solar));
-  Serial.println();
-}
-
-void writeAcStatus()
-{
-  Serial.print(currentDtm->timestamp());
-  Serial.print(F("|"));
-  
-  Serial.print(F("AC"));
-  Serial.print(F("|"));
-
-  // output amperage stats
-  Serial.print(getAvgReading(amps_ac));
-  Serial.print(F("|"));
-  
-  Serial.print(getMinReading(amps_ac));
-  Serial.print(F("|"));
-  
-  Serial.print(getMaxReading(amps_ac));
-  Serial.println();
-}
-
-void writeLoadStatus()
-{
-  Serial.print(currentDtm->timestamp());
-  Serial.print(F("|"));
-  
-  Serial.print(F("LOAD"));
-  Serial.print(F("|"));
-
-  // output amperage stats
-  Serial.print(getAvgReading(amps_load));
-  Serial.print(F("|"));
-  
-  Serial.print(getMinReading(amps_load));
-  Serial.print(F("|"));
-  
-  Serial.print(getMaxReading(amps_load));
-  Serial.println();
-}
-
-void writeEnvironmentStatus()
-{
-  Serial.print(currentDtm->timestamp());
-  Serial.print(F("|"));
-
-  Serial.print(F("ENV"));
-  Serial.print(F("|"));
-    
-  // output temperature and humidity stats
-  Serial.print(temperature);
-  Serial.print(F("|"));
-  
-  Serial.print(humidity);
-  Serial.println();
-}
-
-void writeSystemStatus()
-{
-  Serial.print(currentDtm->timestamp());
-  Serial.print(F("|"));
-
-  Serial.print(F("STAT"));
-  Serial.print(F("|"));
-
-  Serial.print(uptimeSeconds);
-  Serial.print(F("|"));
-
-  Serial.print(getFreeMemory());
-  Serial.print(F("|"));
-  Serial.print(digitalRead(PIN_DEHUMIDIFIER_ENABLED_LED));
-  Serial.println();
+    else
+    {
+        // TODO: do something with invalid commands?
+        Serial.println(F("FAIL"));
+    }
 }
 
 float getVoltage(int pin)
 {
-  int voltSensorValue = analogRead(pin);
+    int voltSensorValue = analogRead(pin);
 
-  float pinVoltage = ((float)voltSensorValue / 1024.0) * 5.0;
+    float pinVoltage = ((float)voltSensorValue / 1024.0) * 5.0;
 
-  float denominator = (float)config.R1Actual / (config.R1Actual + config.R2Actual);
+    float denominator = (float)config.R1Actual / (config.R1Actual + config.R2Actual);
 
-  return ((float)pinVoltage / denominator) + config.VoltageCalibration;
+    return ((float)pinVoltage / denominator) + config.VoltageCalibration;
 }
 
-float getAmperage(int pin)
+float getAmperage(int pin, int offset)
 {
-  int ampSensorValue = analogRead(pin);
+    int ampSensorValue = analogRead(pin);
 
-  // calibration logic.. rather rudimentary
-  ampSensorValue += config.AmpDigitalOffset1;
+    // calibration logic.. rather rudimentary
+    ampSensorValue += offset;
 
-  // TODO: add ability to specify which offset to use
+    if (ampSensorValue > 1024)
+        ampSensorValue = 1024;
 
-  if (ampSensorValue > 1024)
-    ampSensorValue = 1024;
+    if (ampSensorValue < 0)
+        ampSensorValue = 0;
 
-  if (ampSensorValue < 0)
-    ampSensorValue = 0;
-
-  float tmpVoltage = (ampSensorValue / 1024.0) * 5000; // Gets you mV
-  return ((tmpVoltage - ACSoffset) / mVperAmp);
+    float tmpVoltage = (ampSensorValue / 1024.0) * 5000; // Gets you mV
+    return ((tmpVoltage - ACSoffset) / mVperAmp);
 }
 
 void readDht(int pin, float temp, float hum)
 {
-  dht.read2(&temp, &hum, NULL);
+    dht.read2(&temp, &hum, NULL);
 }
 
-void pushReading(float* readingArray, float newValue)
+void pushReading(float *readingArray, float newValue)
 {
-  // work backwards through the array, moving the contents back by one element
-  for (int i = config.AverageReadingCount-2; i >= 0; i--)
-  {
-    readingArray[i+1] = readingArray[i];
-  }
+    // work backwards through the array, moving the contents back by one element
+    for (int i = config.AverageReadingCount - 2; i >= 0; i--)
+        readingArray[i + 1] = readingArray[i];
 
-  // set the first value to the new provided value
-  readingArray[0] = newValue;
-}
-
-float getAvgReading(float* readingArray)
-{
-  int count = 0;
-  float total = 0.0;
-
-  for (int i = 0; i < config.AverageReadingCount; i++)
-  {
-    total += readingArray[i];
-    count++;
-  }
-
-  return (float)total/count;
-}
-
-float getMinReading(float* readingArray)
-{
-  float lastMin = 0;
-  
-  for (int i = 0; i < config.AverageReadingCount; i++)
-  {
-    if (readingArray[i] <= lastMin || lastMin == 0)
-      lastMin = readingArray[i];
-  }
-
-  return lastMin;
-}
-
-float getMaxReading(float* readingArray)
-{
-  float lastMax = 0.0;
-  
-  for (int i = 0; i < config.AverageReadingCount; i++)
-  {
-    if (readingArray[i] >= lastMax)
-      lastMax = readingArray[i];
-  }
-
-  return lastMax;
+    // set the first value to the new provided value
+    readingArray[0] = newValue;
 }
 
 void updateDtm()
 {
-  delete(currentDtm);
-  DateTime* tmpDtm = new DateTime(2021, 11, 19, 13, 27, 0);
-  currentDtm = new DateTime(tmpDtm->unixtime() + uptimeSeconds);
-  delete(tmpDtm);
-}
-
-#ifdef __arm__
-// should use uinstd.h to define sbrk but Due causes a conflict
-extern "C" char* sbrk(int incr);
-#else  // __ARM__
-extern char *__brkval;
-#endif  // __arm__
-
-int getFreeMemory() {
-  char top;
-#ifdef __arm__
-  return &top - reinterpret_cast<char*>(sbrk(0));
-#elif defined(CORE_TEENSY) || (ARDUINO > 103 && ARDUINO != 151)
-  return &top - __brkval;
-#else  // __arm__
-  return __brkval ? &top - __brkval : &top - __malloc_heap_start;
-#endif  // __arm__
+    delete (state.CurrentDtm);
+    DateTime *tmpDtm = new DateTime(2021, 11, 19, 13, 27, 0);
+    state.CurrentDtm = new DateTime(tmpDtm->unixtime() + state.UptimeSeconds);
+    delete (tmpDtm);
 }
