@@ -28,6 +28,7 @@ List of changes can be found in the [changelog](changelog.md).
 * Implement capacity tracking [`Firmware`] 
 * Add JSON API webserver [`GUI`]
 * Add an "imaging" mode that disables dehumidifier and emergency shutoff [`Firmware`, `GUI`]
+* Add config QC checks [`Firmware`]
 
 
 ### Ideas that may be implemented in the future

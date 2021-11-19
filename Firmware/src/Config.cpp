@@ -9,7 +9,7 @@ ConfigObject getDefaultConfig()
         -1337, // Defined
         15,    // AverageReadingCount
         4,     // UpdateFrequency
-        1.0,   // WriteInterval
+        1,     // WriteInterval
         0.0,   // VoltageCalibration
         10000, // R1Actual
         22000, // R2Actual

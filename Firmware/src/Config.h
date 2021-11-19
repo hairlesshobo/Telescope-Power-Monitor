@@ -1,12 +1,14 @@
 #ifndef _CONFIG_H
 #define _CONFIG_H
 
-/**
+#include <Arduino.h>
+
+/*
  * @brief Object used to store the configuration in the EEPROM
  */
 struct ConfigObject
 {
-  /**
+  /*
    * @brief If set to the "magic number" -1337, the EEPROM has been initialized
    */
   int Defined;
@@ -16,21 +18,21 @@ struct ConfigObject
    * 
    * Valid range: 3 - 128
    */
-  int AverageReadingCount;
+  uint8_t AverageReadingCount;
 
   /**
    * @brief How many times per second voltage/current values should be read
    * 
    * Valid range: 1 - 20
    */
-  float UpdateFrequency;
+  uint8_t UpdateFrequency;
   
   /**
    * @brief How often (seconds) should the current status be written to serial
    * 
-   * Valid range: 0.5 - 15 in 0.5 second steps
+   * Valid range: 1 - 15 in 1 second steps
    */
-  float WriteInterval;
+  uint8_t WriteInterval;
 
   /**
    * @brief Fix value to add to voltage reading, can be negative
@@ -40,33 +42,33 @@ struct ConfigObject
   /**
    * @brief Measured resistance of R1 resistor in voltage divider
    */
-  int R1Actual;
+  uint16_t R1Actual;
 
   /**
    * @brief Measured resistance of R2 resistor in voltage divider
    */
-  int R2Actual;
+  uint16_t R2Actual;
 
   /**
    * @brief Offset value to add to battery amperage digital readings
    * 
    * Valid range: -5 to 5 in steps of 1
    */
-  int AmpDigitalOffset1;
+  int8_t AmpDigitalOffset1;
 
   /**
    * @brief Offset value to add to load amperage digital readings
    * 
    * Valid range: -5 to 5 in steps of 1
    */
-  int AmpDigitalOffset2;
+  int8_t AmpDigitalOffset2;
 
   /**
    * @brief Offset value to add to solar amperage digital readings
    * 
    * Valid range: -5 to 5 in steps of 1
    */
-  int AmpDigitalOffset3;
+  int8_t AmpDigitalOffset3;
 
   /**
    * @brief Fixed value that is added to the temperate reading, can be negative
@@ -81,7 +83,7 @@ struct ConfigObject
   /**
    * @brief Humidity level, in percentage, above which the dehumidifer should be activated
    */
-  int TargetHumidity;
+  uint8_t TargetHumidity;
 
   /**
    * @brief Humidity level, in percentage, above or below the "TargetHumidity" required to change dehumdifier state. 
@@ -92,7 +94,7 @@ struct ConfigObject
    * continue running until the humidity falls below 58, and will not re-activate until after it has climbed
    * higher than 62. 
    */
-  int HumidityHysterisis;
+  uint8_t HumidityHysterisis;
 };
 
 ConfigObject getDefaultConfig();

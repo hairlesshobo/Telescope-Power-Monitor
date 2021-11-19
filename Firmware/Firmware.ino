@@ -19,26 +19,86 @@
  */
 
 // Output Format:
-// <ISO_DTM>|STAT|<UptimeSeconds>|<BytesFreeMem>
-// <ISO_DTM>|VOLT|<AvgVoltage>|<MinVoltage>|<MaxVoltage>
-// <ISO_DTM>|BATT|<AvgAmperage>|<MinAmperage>|<MaxAmperage>
-// <ISO_DTM>|LOAD|<AvgAmperage>|<MinAmperage>|<MaxAmperage>
-// <ISO_DTM>|SOLAR|<AvgAmperage>|<MinAmperage>|<MaxAmperage>
-// <ISO_DTM>|AC|<AvgAmperage>|<MinAmperage>|<MaxAmperage>
-// <ISO_DTM>|ENV|<CurrentTemperatureC>|<CurrentHumidityPercent>
+// STAT|<ISO_DTM>|<UptimeSeconds>|<BytesFreeMem>
+// VOLT|<ISO_DTM>|<AvgVoltage>|<MinVoltage>|<MaxVoltage>
+// BATT|<ISO_DTM>|<AvgAmperage>|<MinAmperage>|<MaxAmperage>
+// LOAD|<ISO_DTM>|<AvgAmperage>|<MinAmperage>|<MaxAmperage>
+// SOLAR|<ISO_DTM>|<AvgAmperage>|<MinAmperage>|<MaxAmperage>
+// AC|<ISO_DTM>|<AvgAmperage>|<MinAmperage>|<MaxAmperage>
+// ENV|<ISO_DTM>|<CurrentTemperatureC>|<CurrentHumidityPercent>
+// VERSION|<FirmwareVersion>
+// CONFIG|AverageReadingCount|<value>
+// CONFIG|UpdateFrequency|<value>
+// CONFIG|WriteInterval|<value>
+// CONFIG|VoltageCalibration|<value>
+// CONFIG|R1Actual|<value>
+// CONFIG|R2Actual|<value>
+// CONFIG|AmpDigitalOffset1|<value>
+// CONFIG|AmpDigitalOffset2|<value>
+// CONFIG|AmpDigitalOffset3|<value>
+// CONFIG|TemperatureCalibration|<value>
+// CONFIG|HumidityCalibration|<value>
+// CONFIG|TargetHumidity|<value>
+// CONFIG|HumidityHysterisis|<value>
+// OK
+// FAIL
 
-// Config Options:
-// AverageReadingCount => AvgRdCt
-// UpdateFrequency => UdFreq
-// WriteInterval => WrtInt
-// VoltageCalibration => VCal
-// R1Actual => R1Val
-// R2Actual => R2Val
-// AmpDigitalOffset1 => ADO1
-// AmpDigitalOffset2 => ADO2
-// AmpDigitalOffset3 => ADO3
-// TemperatureCalibration => TCal
-// HumidityCalibration => HCal
+// Input commands:
+// VERSION - Get the current firmware version
+// CONFIG - Get the current controller configuration
+// SET AverageReadingCount <val> - AverageReadingCount -- 
+// SET UpdateFrequency <val> - UpdateFrequency -- 
+// SET WriteInterval <val> - WriteInterval -- 
+// SET VoltageCalibration <val> - VoltageCalibration -- 
+// SET R1Actual <val> - R1Actual -- 
+// SET R2Actual <val> - R2Actual -- 
+// SET AmpDigitalOffset1 <val> - AmpDigitalOffset1 -- Digital offset for the battery amperage
+// SET AmpDigitalOffset2 <val> - AmpDigitalOffset2 -- Digital offset for the load amperage
+// SET AmpDigitalOffset3 <val> - AmpDigitalOffset3 -- Digital offset for the solar amperage
+// SET TemperatureCalibration <val> - TemperatureCalibration -- 
+// SET HumidityCalibration <val> - HumidityCalibration -- 
+// SET TargetHumidity <val> - TargetHumidity -- 
+// SET HumidityHysterisis <val> - HumidityHysterisis -- 
+// SAVE - Save the current config to the EEPROM
+// CLEAR - Reset the EEPROM to the default values 
+// PAUSE - Pause sensor readings
+// RESUME - Resume sensor readings
+
+// Config Option conversion:
+//   AverageReadingCount[19]      => AvgRdCt[7] .. 24 bytes saved
+//   UpdateFrequency[15]          => UdFreq[6]  .. 18 bytes saved
+//   WriteInterval[13]            => WrtInt[6]  .. 14 bytes saved
+//   VoltageCalibration[18]       => VCal[4]    .. 28 bytes saved
+//   R1Actual[8]                  => R1Val[5]   ..  6 bytes saved
+//   R2Actual[8]                  => R2Val[5]   ..  6 bytes saved
+//   AmpDigitalOffset1[17]        => ADO1[4]    .. 26 bytes saved
+//   AmpDigitalOffset2[17]        => ADO2[4]    .. 26 bytes saved
+//   AmpDigitalOffset3[17]        => ADO3[4]    .. 26 bytes saved
+//   TemperatureCalibration[22]   => TCal[4]    .. 36 bytes saved
+//   HumidityCalibration[19]      => HCal[4]    .. 30 bytes saved
+//   TargetHumidity[14]           => TgHum[5]   .. 18 bytes saved
+//   HumidityHysterisis[18]       => HumHys[6]  .. 24 bytes saved
+
+// TOTAL: 
+//        282 bytes progmem saved if implemented
+//         30 bytes heap saved if implemented and serial reservation is decreased bv 15
+
+// Serial commmand conversion
+//   Version[7] => VERSION .. 14 bytes saved
+//   Config[6]  => CONFIG  .. 12 bytes saved
+//
+//   SUBTOTAL: 26 bytes progmem saved if implemented
+//
+//   VERSION[7] => VER[3]  ..  8 bytes saved
+//   CONFIG[6]  => CFG[3]  ..  6 bytes saved
+//
+//   SAVE[4]    => SAV[3]  ..  2 bytes saved
+//   CLEAR[5]   => CLR[3]  ..  4 bytes saved
+//   PAUSE[5]   => PSE[3]  ..  4 bytes saved
+//   RESUME[6]  => RSM[3]  ..  6 bytes saved
+//
+//   SUBTOTAL: 30 bytes progmem saved if implemented
+
 
 #include "src/Helpers.h"
 #include "src/PrintHelpers.h"
@@ -53,6 +113,7 @@
 #include <SD.h>
 
 #define ENV_WRITE_DELAY 2500
+// #define OVERWRITE_EEPROM
 
 // Constants
 const String VERSION = "2.0";
@@ -184,6 +245,10 @@ void setupPins()
 
 void initConfig()
 {
+#ifdef OVERWRITE_EEPROM
+    writeDefaultConfig();
+#endif // OVERWRITE_EEPROM
+
     readConfig();
 
     // check for magic number
@@ -338,7 +403,7 @@ void writeConfig()
  */
 void writeDefaultConfig()
 {
-    Serial.println(F("Writing default config to EEPROM"));
+    Serial.println(F("WRITE default config"));
     EEPROM.put(0, getDefaultConfig());
 }
 
@@ -367,19 +432,7 @@ void serialEvent()
 
 void handleSerialCommand(String *commandLine)
 {
-    if (commandLine->startsWith(F("GET")))
-    {
-        // strip the GET from the beginning
-        *commandLine = commandLine->substring(4);
-
-        if (commandLine->startsWith(F("Version")))
-            printPipePair(F("VERSION"), VERSION, true);
-
-        else if (commandLine->startsWith(F("Config")))
-            printConfig(config);
-    }
-
-    else if (commandLine->startsWith(F("SET")))
+    if (commandLine->startsWith(F("SET")))
     {
         *commandLine = commandLine->substring(4);
 
@@ -388,7 +441,7 @@ void handleSerialCommand(String *commandLine)
             *commandLine = commandLine->substring(20);
             config.AverageReadingCount = commandLine->toInt();
 
-            printConfigEntry(F("AverageReadingCount"), config.AverageReadingCount);
+            printConfigEntry(F("AverageReadingCount"), (uint32_t)config.AverageReadingCount);
 
             reallocateArrays();
         }
@@ -396,17 +449,17 @@ void handleSerialCommand(String *commandLine)
         else if (commandLine->startsWith(F("UpdateFrequency")))
         {
             *commandLine = commandLine->substring(16);
-            config.UpdateFrequency = commandLine->toFloat();
+            config.UpdateFrequency = commandLine->toInt();
 
-            printConfigEntry(F("UpdateFrequency"), config.UpdateFrequency);
+            printConfigEntry(F("UpdateFrequency"), (uint32_t)config.UpdateFrequency);
         }
 
         else if (commandLine->startsWith(F("WriteInterval")))
         {
             *commandLine = commandLine->substring(14);
-            config.WriteInterval = commandLine->toFloat();
+            config.WriteInterval = commandLine->toInt();
 
-            printConfigEntry(F("WriteInterval"), config.WriteInterval);
+            printConfigEntry(F("WriteInterval"), (uint32_t)config.WriteInterval);
         }
 
         else if (commandLine->startsWith(F("VoltageCalibration")))
@@ -422,7 +475,7 @@ void handleSerialCommand(String *commandLine)
             *commandLine = commandLine->substring(9);
             config.R1Actual = commandLine->toInt();
 
-            printConfigEntry(F("R1Actual"), config.R1Actual);
+            printConfigEntry(F("R1Actual"), (uint32_t)config.R1Actual);
         }
 
         else if (commandLine->startsWith(F("R2Actual")))
@@ -430,7 +483,7 @@ void handleSerialCommand(String *commandLine)
             *commandLine = commandLine->substring(9);
             config.R2Actual = commandLine->toInt();
 
-            printConfigEntry(F("R2Actual"), config.R2Actual);
+            printConfigEntry(F("R2Actual"), (uint32_t)config.R2Actual);
         }
 
         else if (commandLine->startsWith(F("AmpDigitalOffset1")))
@@ -438,7 +491,7 @@ void handleSerialCommand(String *commandLine)
             *commandLine = commandLine->substring(17);
             config.AmpDigitalOffset1 = commandLine->toInt();
 
-            printConfigEntry(F("AmpDigitalOffset1"), config.AmpDigitalOffset1);
+            printConfigEntry(F("AmpDigitalOffset1"), (uint32_t)config.AmpDigitalOffset1);
         }
 
         else if (commandLine->startsWith(F("AmpDigitalOffset2")))
@@ -446,7 +499,7 @@ void handleSerialCommand(String *commandLine)
             *commandLine = commandLine->substring(17);
             config.AmpDigitalOffset2 = commandLine->toInt();
 
-            printConfigEntry(F("AmpDigitalOffset2"), config.AmpDigitalOffset2);
+            printConfigEntry(F("AmpDigitalOffset2"), (uint32_t)config.AmpDigitalOffset2);
         }
 
         else if (commandLine->startsWith(F("AmpDigitalOffset3")))
@@ -454,7 +507,7 @@ void handleSerialCommand(String *commandLine)
             *commandLine = commandLine->substring(17);
             config.AmpDigitalOffset3 = commandLine->toInt();
 
-            printConfigEntry(F("AmpDigitalOffset3"), config.AmpDigitalOffset3);
+            printConfigEntry(F("AmpDigitalOffset3"), (uint32_t)config.AmpDigitalOffset3);
         }
 
         else if (commandLine->startsWith(F("TemperatureCalibration")))
@@ -472,7 +525,29 @@ void handleSerialCommand(String *commandLine)
 
             printConfigEntry(F("HumidityCalibration"), config.HumidityCalibration);
         }
+
+        else if (commandLine->startsWith(F("TargetHumidity")))
+        {
+            *commandLine = commandLine->substring(15);
+            config.HumidityCalibration = commandLine->toInt();
+
+            printConfigEntry(F("TargetHumidity"), (uint32_t)config.TargetHumidity);
+        }
+
+        else if (commandLine->startsWith(F("HumidityHysterisis")))
+        {
+            *commandLine = commandLine->substring(19);
+            config.HumidityCalibration = commandLine->toInt();
+
+            printConfigEntry(F("HumidityHysterisis"), (uint32_t)config.HumidityHysterisis);
+        }
     }
+
+    else if (commandLine->startsWith(F("CONFIG")))
+        printConfig(config);
+
+    else if (commandLine->startsWith(F("VERSION")))
+        printPipePair(F("VERSION"), VERSION, true);
 
     else if (commandLine->startsWith(F("SAVE")))
     {
@@ -500,10 +575,7 @@ void handleSerialCommand(String *commandLine)
     }
 
     else
-    {
-        // TODO: do something with invalid commands?
         Serial.println(F("FAIL"));
-    }
 }
 
 float getVoltage(int pin)

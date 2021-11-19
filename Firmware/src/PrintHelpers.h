@@ -18,4 +18,5 @@ void printVoltStatus(State &state, ConfigObject &config, float *volts);
 void printConfigEntryHeader(const String &s);
 void printConfigEntry(const String &s, int value);
 void printConfigEntry(const String &s, float value);
+void printConfigEntry(const String &s, uint32_t value);
 void printConfig(ConfigObject &config);

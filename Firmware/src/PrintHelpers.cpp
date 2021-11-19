@@ -77,8 +77,7 @@ void printVoltStatus(State &state, ConfigObject &config, float *volts)
 void printConfigEntryHeader(const String &s)
 {
     printWithPipe(F("CONFIG"));
-    Serial.print(s);
-    Serial.print(F(": "));
+    printWithPipe(s);
 }
 
 void printConfigEntry(const String &s, int value)
@@ -93,17 +92,25 @@ void printConfigEntry(const String &s, float value)
     Serial.println(value);
 }
 
+void printConfigEntry(const String &s, uint32_t value)
+{
+    printConfigEntryHeader(s);
+    Serial.println(value);
+}
+
 void printConfig(ConfigObject &config)
 {
     printConfigEntry(F("AverageReadingCount"), config.AverageReadingCount);
-    printConfigEntry(F("UpdateFrequency"), config.UpdateFrequency);
-    printConfigEntry(F("WriteInterval"), config.WriteInterval);
+    printConfigEntry(F("UpdateFrequency"), (uint32_t)config.UpdateFrequency);
+    printConfigEntry(F("WriteInterval"), (uint32_t)config.WriteInterval);
     printConfigEntry(F("VoltageCalibration"), config.VoltageCalibration);
-    printConfigEntry(F("R1Actual"), config.R1Actual);
-    printConfigEntry(F("R2Actual"), config.R2Actual);
-    printConfigEntry(F("AmpDigitalOffset1"), config.AmpDigitalOffset1);
-    printConfigEntry(F("AmpDigitalOffset2"), config.AmpDigitalOffset2);
-    printConfigEntry(F("AmpDigitalOffset3"), config.AmpDigitalOffset3);
+    printConfigEntry(F("R1Actual"), (uint32_t)config.R1Actual);
+    printConfigEntry(F("R2Actual"), (uint32_t)config.R2Actual);
+    printConfigEntry(F("AmpDigitalOffset1"), (uint32_t)config.AmpDigitalOffset1);
+    printConfigEntry(F("AmpDigitalOffset2"), (uint32_t)config.AmpDigitalOffset2);
+    printConfigEntry(F("AmpDigitalOffset3"), (uint32_t)config.AmpDigitalOffset3);
     printConfigEntry(F("TemperatureCalibration"), config.TemperatureCalibration);
     printConfigEntry(F("HumidityCalibration"), config.HumidityCalibration);
+    printConfigEntry(F("TargetHumidity"), (uint32_t)config.TargetHumidity);
+    printConfigEntry(F("HumidityHysterisis"), (uint32_t)config.HumidityHysterisis);
 }
