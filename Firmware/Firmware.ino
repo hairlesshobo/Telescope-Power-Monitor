@@ -109,6 +109,8 @@
 //
 //   SUBTOTAL: 30 bytes progmem saved if implemented
 
+#pragma region Includes
+//========================================================================
 
 #include "src/Helpers.h"
 #include "src/PrintHelpers.h"
@@ -122,15 +124,23 @@
 #include <SPI.h>
 #include <SD.h>
 
+//========================================================================
+#pragma endregion
+
+
+#pragma region Defines
+//========================================================================
+
 #define ENV_WRITE_DELAY 2500
 #define OVERWRITE_EEPROM
 
-
-
-
 //========================================================================
-// Constants
+#pragma endregion
+
+
+#pragma region Constants
 //========================================================================
+
 const String VERSION = "2.0";
 
 const uint8_t mVperAmp = 100; // use 100 for 20A Module and 66 for 30A Module
@@ -160,11 +170,11 @@ const uint8_t PIN_SD_SELECT = 10;
 // const uint8_t PIN_ICSP_MISO = 12;
 // const uint8_t PIN_ICSP_SCK = 13;
 
-
-
-
 //========================================================================
-// Global Variables
+#pragma endregion
+
+
+#pragma region Global Variables
 //========================================================================
 
 /**
@@ -247,12 +257,11 @@ SdFile root;
  */
 RTC_PCF8523 rtc;
 
-
-
-
-
 //========================================================================
-// Setup Routines
+#pragma endregion
+
+
+#pragma region Setup Routines
 //========================================================================
 
 /**
@@ -370,11 +379,13 @@ void initConfig()
     }
 }
 
+//========================================================================
+#pragma endregion
 
 
+#pragma region Main loop
 //========================================================================
-// Main loop
-//========================================================================
+
 /**
  * @brief Main loop
  */
@@ -467,11 +478,11 @@ void serialEvent()
     }
 }
 
-
-
-
 //========================================================================
-// Serial command handling
+#pragma endregion
+
+
+#pragma region Serial command handling
 //========================================================================
 
 /**
@@ -683,10 +694,21 @@ void handleSerialCommand(String *commandLine)
 }
 
 
+boolean parseConfigValFloat()
+{
+    if (!commandLine->startsWith(F("AcBackupPoint")))
+        return false;
 
+    *commandLine = commandLine->substring(14);
+    config.AcBackupPoint = commandLine->toFloat();
 
+    printConfigEntry(F("AcBackupPoint"), config.AcBackupPoint);
+}
 //========================================================================
-// Config
+#pragma endregion
+
+
+#pragma region Config
 //========================================================================
 
 /**
@@ -716,11 +738,13 @@ void writeDefaultConfig()
     EEPROM.put(0, getDefaultConfig());
 }
 
+//========================================================================
+#pragma endregion
 
 
+#pragma region Utiltiies
 //========================================================================
-// Utiltiies
-//========================================================================
+
 /**
  * @brief Called once during board startup to allocate space for reading arrays
  */
@@ -787,10 +811,11 @@ void updateDtm()
     *state.CurrentDtm = rtc.now();
 }
 
-
-
 //========================================================================
-// Sensor and Relay Support
+#pragma endregion
+
+
+#pragma region Sensor and Relay Support
 //========================================================================
 
 /**
@@ -844,3 +869,6 @@ void readDht(int pin, float *temp, float *hum)
 {
     dht.read2(temp, hum, NULL);
 }
+
+//========================================================================
+#pragma endregion
