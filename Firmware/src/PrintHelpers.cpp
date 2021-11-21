@@ -121,4 +121,5 @@ void printConfig(ConfigObject &config)
     printConfigEntry(F("HumidityCalibration"), config.HumidityCalibration);
     printConfigEntry(F("TargetHumidity"), (uint32_t)config.TargetHumidity);
     printConfigEntry(F("HumidityHysterisis"), (uint32_t)config.HumidityHysterisis);
+    printConfigEntry(F("AcBackupPoint"), config.AcBackupPoint);
 }

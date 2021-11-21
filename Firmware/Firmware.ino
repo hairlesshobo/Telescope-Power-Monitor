@@ -132,7 +132,7 @@
 //========================================================================
 
 #define ENV_WRITE_DELAY 2500
-#define OVERWRITE_EEPROM
+// #define OVERWRITE_EEPROM
 
 //========================================================================
 #pragma endregion
@@ -541,119 +541,24 @@ void handleSerialCommand(String *commandLine)
 
             rtc.adjust(DateTime(dtmStr));
         }
-        else if (commandLine->startsWith(F("AverageReadingCount")))
-        {
-            *commandLine = commandLine->substring(20);
-            config.AverageReadingCount = commandLine->toInt();
 
-            printConfigEntry(F("AverageReadingCount"), (uint32_t)config.AverageReadingCount);
+        // 2021-11-21T17:41:33|PWR|12.92|-0.05|0.04|0.03|-0.04
 
+        else if (parseConfigValShort(commandLine, &config.AverageReadingCount, F("AverageReadingCount"), 20)) 
             reallocateArrays();
-        }
-
-        else if (commandLine->startsWith(F("UpdateFrequency")))
-        {
-            *commandLine = commandLine->substring(16);
-            config.UpdateFrequency = commandLine->toInt();
-
-            printConfigEntry(F("UpdateFrequency"), (uint32_t)config.UpdateFrequency);
-        }
-
-        else if (commandLine->startsWith(F("WriteInterval")))
-        {
-            *commandLine = commandLine->substring(14);
-            config.WriteInterval = commandLine->toInt();
-
-            printConfigEntry(F("WriteInterval"), (uint32_t)config.WriteInterval);
-        }
-
-        else if (commandLine->startsWith(F("VoltageCalibration")))
-        {
-            *commandLine = commandLine->substring(19);
-            config.VoltageCalibration = commandLine->toFloat();
-
-            printConfigEntry(F("VoltageCalibration"), config.VoltageCalibration);
-        }
-
-        else if (commandLine->startsWith(F("R1Actual")))
-        {
-            *commandLine = commandLine->substring(9);
-            config.R1Actual = commandLine->toInt();
-
-            printConfigEntry(F("R1Actual"), (uint32_t)config.R1Actual);
-        }
-
-        else if (commandLine->startsWith(F("R2Actual")))
-        {
-            *commandLine = commandLine->substring(9);
-            config.R2Actual = commandLine->toInt();
-
-            printConfigEntry(F("R2Actual"), (uint32_t)config.R2Actual);
-        }
-
-        else if (commandLine->startsWith(F("AmpDigitalOffset1")))
-        {
-            *commandLine = commandLine->substring(17);
-            config.AmpDigitalOffset1 = commandLine->toInt();
-
-            printConfigEntry(F("AmpDigitalOffset1"), (uint32_t)config.AmpDigitalOffset1);
-        }
-
-        else if (commandLine->startsWith(F("AmpDigitalOffset2")))
-        {
-            *commandLine = commandLine->substring(17);
-            config.AmpDigitalOffset2 = commandLine->toInt();
-
-            printConfigEntry(F("AmpDigitalOffset2"), (uint32_t)config.AmpDigitalOffset2);
-        }
-
-        else if (commandLine->startsWith(F("AmpDigitalOffset3")))
-        {
-            *commandLine = commandLine->substring(17);
-            config.AmpDigitalOffset3 = commandLine->toInt();
-
-            printConfigEntry(F("AmpDigitalOffset3"), (uint32_t)config.AmpDigitalOffset3);
-        }
-
-        else if (commandLine->startsWith(F("TemperatureCalibration")))
-        {
-            *commandLine = commandLine->substring(23);
-            config.TemperatureCalibration = commandLine->toFloat();
-
-            printConfigEntry(F("TemperatureCalibration"), config.TemperatureCalibration);
-        }
-
-        else if (commandLine->startsWith(F("HumidityCalibration")))
-        {
-            *commandLine = commandLine->substring(20);
-            config.HumidityCalibration = commandLine->toFloat();
-
-            printConfigEntry(F("HumidityCalibration"), config.HumidityCalibration);
-        }
-
-        else if (commandLine->startsWith(F("TargetHumidity")))
-        {
-            *commandLine = commandLine->substring(15);
-            config.HumidityCalibration = commandLine->toInt();
-
-            printConfigEntry(F("TargetHumidity"), (uint32_t)config.TargetHumidity);
-        }
-
-        else if (commandLine->startsWith(F("HumidityHysterisis")))
-        {
-            *commandLine = commandLine->substring(19);
-            config.HumidityCalibration = commandLine->toInt();
-
-            printConfigEntry(F("HumidityHysterisis"), (uint32_t)config.HumidityHysterisis);
-        }
-
-        else if (commandLine->startsWith(F("AcBackupPoint")))
-        {
-            *commandLine = commandLine->substring(14);
-            config.AcBackupPoint = commandLine->toFloat();
-
-            printConfigEntry(F("AcBackupPoint"), config.AcBackupPoint);
-        }
+        else if (parseConfigValShort(commandLine, &config.UpdateFrequency, F("UpdateFrequency"), 16)) { }
+        else if (parseConfigValShort(commandLine, &config.WriteInterval, F("WriteInterval"), 14)) { }
+        else if (parseConfigValFloat(commandLine, &config.VoltageCalibration, F("VoltageCalibration"), 19)) { }
+        else if (parseConfigValInt(commandLine, &config.R1Actual, F("R1Actual"), 9)) { }
+        else if (parseConfigValInt(commandLine, &config.R2Actual, F("R2Actual"), 9)) { }
+        else if (parseConfigValShort(commandLine, &config.AmpDigitalOffset1, F("AmpDigitalOffset1"), 17)) { }
+        else if (parseConfigValShort(commandLine, &config.AmpDigitalOffset2, F("AmpDigitalOffset2"), 17)) { }
+        else if (parseConfigValShort(commandLine, &config.AmpDigitalOffset3, F("AmpDigitalOffset3"), 17)) { }
+        else if (parseConfigValFloat(commandLine, &config.TemperatureCalibration, F("TemperatureCalibration"), 23)) { }
+        else if (parseConfigValFloat(commandLine, &config.HumidityCalibration, F("HumidityCalibration"), 20)) { }
+        else if (parseConfigValShort(commandLine, &config.TargetHumidity, F("TargetHumidity"), 15)) { }
+        else if (parseConfigValShort(commandLine, &config.HumidityHysterisis, F("HumidityHysterisis"), 19)) { }
+        else if (parseConfigValFloat(commandLine, &config.AcBackupPoint, F("AcBackupPoint"), 14)) { }
     }
 
     else if (commandLine->startsWith(F("CONFIG")))
@@ -694,16 +599,54 @@ void handleSerialCommand(String *commandLine)
 }
 
 
-boolean parseConfigValFloat()
+/**
+ * @brief Parse an incoming serial config floating point value
+ */
+boolean parseConfigValFloat(String *commandLine, float *destination, const __FlashStringHelper *itemName, uint8_t length)
 {
-    if (!commandLine->startsWith(F("AcBackupPoint")))
+    if (!commandLine->startsWith(itemName))
         return false;
 
-    *commandLine = commandLine->substring(14);
-    config.AcBackupPoint = commandLine->toFloat();
+    *commandLine = commandLine->substring(length);
+    *destination = commandLine->toFloat();
 
-    printConfigEntry(F("AcBackupPoint"), config.AcBackupPoint);
+    printConfigEntry(itemName, *destination);
+
+    return true;
 }
+
+/**
+ * @brief Parse an incoming serial config floating point value
+ */
+boolean parseConfigValShort(String *commandLine, uint8_t *destination, const __FlashStringHelper *itemName, uint8_t length)
+{
+    if (!commandLine->startsWith(itemName))
+        return false;
+
+    *commandLine = commandLine->substring(length);
+    *destination = commandLine->toInt();
+
+    printConfigEntry(itemName, *destination);
+
+    return true;
+}
+
+/**
+ * @brief Parse an incoming serial config floating point value
+ */
+boolean parseConfigValInt(String *commandLine, uint16_t *destination, const __FlashStringHelper *itemName, uint8_t length)
+{
+    if (!commandLine->startsWith(itemName))
+        return false;
+
+    *commandLine = commandLine->substring(length);
+    *destination = commandLine->toInt();
+
+    printConfigEntry(itemName, (uint32_t)*destination);
+
+    return true;
+}
+
 //========================================================================
 #pragma endregion
 

@@ -8,8 +8,8 @@ ConfigObject getDefaultConfig()
     return ConfigObject {
         -1337, // Defined
         15,    // AverageReadingCount
-        4,     // UpdateFrequency
-        1,     // WriteInterval
+        2,     // UpdateFrequency
+        2,     // WriteInterval
         0.0,   // VoltageCalibration
         10000, // R1Actual
         22000, // R2Actual
