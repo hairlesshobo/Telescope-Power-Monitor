@@ -36,6 +36,7 @@
 // CONFIG|HumidityCalibration|<value>
 // CONFIG|TargetHumidity|<value>
 // CONFIG|HumidityHysterisis|<value>
+// CONFIG|AcBackupPoint|<value>
 // OK
 // FAIL
 
@@ -55,6 +56,7 @@
 // SET HumidityCalibration <val> - HumidityCalibration -- 
 // SET TargetHumidity <val> - TargetHumidity -- 
 // SET HumidityHysterisis <val> - HumidityHysterisis -- 
+// SET AcBackupPoint <val> - ACBV --
 // SET TIME <val in format yyyy-MM-ddTHH:mm:ss>
 // ENABLE DEHUM
 // DISABLE DEHUM
@@ -85,9 +87,10 @@
 //   HumidityCalibration[19]      => HCal[4]    .. 30 bytes saved
 //   TargetHumidity[14]           => TgHum[5]   .. 18 bytes saved
 //   HumidityHysterisis[18]       => HumHys[6]  .. 24 bytes saved
+//   AcBackupPoint[13]            => ACBV[4]    .. 18 bytes saved
 
 // TOTAL: 
-//        282 bytes progmem saved if implemented
+//        300 bytes progmem saved if implemented
 //         30 bytes heap saved if implemented and serial reservation is decreased bv 15
 
 // Serial commmand conversion
@@ -120,9 +123,14 @@
 #include <SD.h>
 
 #define ENV_WRITE_DELAY 2500
-// #define OVERWRITE_EEPROM
+#define OVERWRITE_EEPROM
 
+
+
+
+//========================================================================
 // Constants
+//========================================================================
 const String VERSION = "2.0";
 
 const uint8_t mVperAmp = 100; // use 100 for 20A Module and 66 for 30A Module
@@ -151,6 +159,13 @@ const uint8_t PIN_SD_SELECT = 10;
 // const uint8_t PIN_ICSP_MOSI = 11;
 // const uint8_t PIN_ICSP_MISO = 12;
 // const uint8_t PIN_ICSP_SCK = 13;
+
+
+
+
+//========================================================================
+// Global Variables
+//========================================================================
 
 /**
  * @brief Array holding all readings of battery amperage to be averaged
@@ -212,34 +227,96 @@ State state = {
  */
 SimpleDHT22 dht(PIN_DHT);
 
+/**
+ * @brief SD Card interface instance
+ */
 Sd2Card card;
+
+/**
+ * @brief SD Card volume instance
+ */
 SdVolume volume;
+
+/**
+ * @brief SD Card filesystem root instance
+ */
 SdFile root;
 
+/**
+ * @brief Realtime Clock Instance
+ */
 RTC_PCF8523 rtc;
+
+
+
+
+
+//========================================================================
+// Setup Routines
+//========================================================================
 
 /**
  * @brief Initial board setup
  */
 void setup()
 {
+    setupSerial();
+    initConfig();
+    allocateArrays();
+    setupPins();
+    setupSdCard();
+    setupRtc();
+
+    updateDtm();
+}
+
+/**
+ * @brief Setup the serial interface
+ */
+void setupSerial()
+{
     inputString.reserve(30);
 
     Serial.begin(115200);
 
-    initConfig();
-    allocateArrays();
-    setupPins();
-    setupRtc();
-
-    updateDtm();
-
     inputString = "";
 }
 
+/**
+ * @brief Setup the SD card interface
+ */
+void setupSdCard()
+{
+    if (!SD.begin(PIN_SD_SELECT)) 
+    {
+        Serial.println(F("SD failed!"));
+
+        abort();
+    }
+}
+
+/**
+ * @brief Abort firmware execution and flash the status light
+ */
+void abort()
+{
+    while (1)
+    {
+        digitalWrite(PIN_DEHUMIDIFIER_ENABLED_LED, !digitalRead(PIN_DEHUMIDIFIER_ENABLED_LED));
+        delay(200);
+    }
+}
+
+/**
+ * @brief Initialize the RTC
+ */
 void setupRtc()
 {
-    rtc.begin();
+    if (!rtc.begin())
+    {
+        Serial.println(F("RTC FAIL"));
+        abort();
+    }
     
     // this is only called if the time has never been set or after the battery has died
     if (!rtc.initialized() || rtc.lostPower()) 
@@ -252,21 +329,30 @@ void setupRtc()
     rtc.start();
 }
 
+/**
+ * @brief Configure pins and set their initial state
+ */
 void setupPins()
 {
+    pinMode(PIN_TOGGLE_TELESCOPE_OUTPUT_BUTTON, INPUT_PULLUP);
+    pinMode(PIN_TOGGLE_DEHUMIDIFIER_OUTPUT_BUTTON, INPUT_PULLUP);
+
     pinMode(PIN_TELESCOPE_OUTPUT_RELAY, OUTPUT);
     pinMode(PIN_DEHUMIDIFIER_OUTPUT_RELAY, OUTPUT);
     pinMode(PIN_AUX_OUTPUT_RELAY, OUTPUT);
     pinMode(PIN_AC_INPUT_RELAY, OUTPUT);
     pinMode(PIN_DEHUMIDIFIER_ENABLED_LED, OUTPUT);
 
-    // TODO: Fix this
-    digitalWrite(PIN_TELESCOPE_OUTPUT_RELAY, !state.TelescopeOutState);
-    digitalWrite(PIN_DEHUMIDIFIER_OUTPUT_RELAY, !state.DehumOutState);
-    digitalWrite(PIN_AUX_OUTPUT_RELAY, !state.Aux1OutState);
-    digitalWrite(PIN_AC_INPUT_RELAY, !state.AcInState);
+    // Synchronize the relay state with the default state of each output
+    setRelayState(&state.TelescopeOutState, PIN_TELESCOPE_OUTPUT_RELAY, state.TelescopeOutState);
+    setRelayState(&state.DehumOutState, PIN_DEHUMIDIFIER_OUTPUT_RELAY, state.DehumOutState);
+    setRelayState(&state.Aux1OutState, PIN_AUX_OUTPUT_RELAY, state.Aux1OutState);
+    setRelayState(&state.AcInState, PIN_AC_INPUT_RELAY, state.AcInState);
 }
 
+/**
+ * @brief Initialize the controller configuration
+ */
 void initConfig()
 {
 #ifdef OVERWRITE_EEPROM
@@ -284,6 +370,11 @@ void initConfig()
     }
 }
 
+
+
+//========================================================================
+// Main loop
+//========================================================================
 /**
  * @brief Main loop
  */
@@ -307,7 +398,6 @@ void loop()
 
         // TODO: For testing only.. remove for final code
         digitalWrite(PIN_DEHUMIDIFIER_ENABLED_LED, !digitalRead(PIN_DEHUMIDIFIER_ENABLED_LED));
-        // digitalWrite(PIN_TELESCOPE_OUTPUT_RELAY, !digitalRead(PIN_TELESCOPE_OUTPUT_RELAY));
 
         printSystemStatus(state, config);
 
@@ -334,8 +424,7 @@ void loop()
 
         if (state.LastDhtReadTime == 0 || (millis() - state.LastDhtReadTime) >= ENV_WRITE_DELAY)
         {
-            // TODO: fix this
-            readDht(PIN_DHT); //, state.Temperature, state.Humidity);
+            readDht(PIN_DHT, &state.Temperature, &state.Humidity);
             printEnvironmentStatus(state, config);
 
             state.LastDhtReadTime = millis();
@@ -352,82 +441,10 @@ void loop()
 }
 
 /**
- * @brief Called once during board startup to allocate space for reading arrays
- */
-void allocateArrays()
-{
-    volts = new float[config.AverageReadingCount];
-    amps_battery = new float[config.AverageReadingCount];
-    amps_load = new float[config.AverageReadingCount];
-    amps_solar = new float[config.AverageReadingCount];
-
-    initializeArray(volts);
-    initializeArray(amps_battery);
-    initializeArray(amps_load);
-    initializeArray(amps_solar);
-}
-
-/**
- * @brief Initializse the specified array with all empty values
- */
-void initializeArray(float *readingArray)
-{
-    for (int i = 0; i < config.AverageReadingCount; i++)
-        readingArray[i] = 0.0;
-}
-
-/**
- * @brief To be called whenever the "readingsToAverage" config value is changed
- */
-void reallocateArrays()
-{
-    if (amps_battery != 0)
-        delete[] amps_battery;
-
-    if (volts != 0)
-        delete[] volts;
-
-    if (amps_load != 0)
-        delete[] amps_load;
-
-    if (amps_solar != 0)
-        delete[] amps_solar;
-
-    allocateArrays();
-}
-
-/**
- * @brief Read the config from the EEPROM
- */
-void readConfig()
-{
-    // load the config from the EEPROM
-    EEPROM.get(0, config);
-}
-
-/**
- * @brief Write the current config object to the EEPROM
- */
-void writeConfig()
-{
-    // Write the current config to the EEPROM
-    EEPROM.put(0, config);
-}
-
-/**
- * @brief Writes the default config values to the EEPROM
- */
-void writeDefaultConfig()
-{
-    Serial.println(F("WRITE default config"));
-    EEPROM.put(0, getDefaultConfig());
-}
-
-/*
- SerialEvent occurs whenever a new data comes in the
- hardware serial RX.  This routine is run between each
- time loop() runs, so using delay inside loop can delay
- response.  Multiple bytes of data may be available.
+ * @brief occurs whenever a new data comes in the hardware serial RX.  
+ * 
+ * This routine is run between each time loop() runs, so using delay 
+ * inside loop can delay response.  Multiple bytes of data may be available.
  */
 void serialEvent()
 {
@@ -450,13 +467,16 @@ void serialEvent()
     }
 }
 
-void setRelayState(boolean *target, uint8_t pin, boolean newState)
-{
-    *target = newState;
 
-    digitalWrite(pin, !newState);
-}
 
+
+//========================================================================
+// Serial command handling
+//========================================================================
+
+/**
+ * @brief Handle commands being received via serial connection
+ */
 void handleSerialCommand(String *commandLine)
 {
     boolean fail = false;
@@ -615,6 +635,14 @@ void handleSerialCommand(String *commandLine)
 
             printConfigEntry(F("HumidityHysterisis"), (uint32_t)config.HumidityHysterisis);
         }
+
+        else if (commandLine->startsWith(F("AcBackupPoint")))
+        {
+            *commandLine = commandLine->substring(14);
+            config.AcBackupPoint = commandLine->toFloat();
+
+            printConfigEntry(F("AcBackupPoint"), config.AcBackupPoint);
+        }
     }
 
     else if (commandLine->startsWith(F("CONFIG")))
@@ -654,6 +682,130 @@ void handleSerialCommand(String *commandLine)
         Serial.println(F("FAIL"));
 }
 
+
+
+
+//========================================================================
+// Config
+//========================================================================
+
+/**
+ * @brief Read the config from the EEPROM
+ */
+void readConfig()
+{
+    // load the config from the EEPROM
+    EEPROM.get(0, config);
+}
+
+/**
+ * @brief Write the current config object to the EEPROM
+ */
+void writeConfig()
+{
+    // Write the current config to the EEPROM
+    EEPROM.put(0, config);
+}
+
+/**
+ * @brief Writes the default config values to the EEPROM
+ */
+void writeDefaultConfig()
+{
+    Serial.println(F("WRITE default config"));
+    EEPROM.put(0, getDefaultConfig());
+}
+
+
+
+//========================================================================
+// Utiltiies
+//========================================================================
+/**
+ * @brief Called once during board startup to allocate space for reading arrays
+ */
+void allocateArrays()
+{
+    volts = new float[config.AverageReadingCount];
+    amps_battery = new float[config.AverageReadingCount];
+    amps_load = new float[config.AverageReadingCount];
+    amps_solar = new float[config.AverageReadingCount];
+
+    initializeArray(volts);
+    initializeArray(amps_battery);
+    initializeArray(amps_load);
+    initializeArray(amps_solar);
+}
+
+/**
+ * @brief Initializse the specified array with all empty values
+ */
+void initializeArray(float *readingArray)
+{
+    for (int i = 0; i < config.AverageReadingCount; i++)
+        readingArray[i] = 0.0;
+}
+
+/**
+ * @brief To be called whenever the "readingsToAverage" config value is changed
+ */
+void reallocateArrays()
+{
+    if (amps_battery != 0)
+        delete[] amps_battery;
+
+    if (volts != 0)
+        delete[] volts;
+
+    if (amps_load != 0)
+        delete[] amps_load;
+
+    if (amps_solar != 0)
+        delete[] amps_solar;
+
+    allocateArrays();
+}
+
+/**
+ * @brief Push a new reading to the array of readings for averaging purposes
+ */
+void pushReading(float *readingArray, float newValue)
+{
+    // work backwards through the array, moving the contents back by one element
+    for (int i = config.AverageReadingCount - 2; i >= 0; i--)
+        readingArray[i + 1] = readingArray[i];
+
+    // set the first value to the new provided value
+    readingArray[0] = newValue;
+}
+
+/**
+ * @brief Update the time from the RTC
+ */
+void updateDtm()
+{
+    *state.CurrentDtm = rtc.now();
+}
+
+
+
+//========================================================================
+// Sensor and Relay Support
+//========================================================================
+
+/**
+ * @brief Set the state of the named relay and store it's new state
+ */
+void setRelayState(boolean *target, uint8_t pin, boolean newState)
+{
+    *target = newState;
+
+    digitalWrite(pin, !newState);
+}
+
+/**
+ * @brief Read the voltage on the specified pin
+ */
 float getVoltage(int pin)
 {
     int voltSensorValue = analogRead(pin);
@@ -665,6 +817,9 @@ float getVoltage(int pin)
     return ((float)pinVoltage / denominator) + config.VoltageCalibration;
 }
 
+/**
+ * @brief Read the amperage on the specified pin
+ */
 float getAmperage(int pin, int offset)
 {
     int ampSensorValue = analogRead(pin);
@@ -682,22 +837,10 @@ float getAmperage(int pin, int offset)
     return ((tmpVoltage - ACSoffset) / mVperAmp);
 }
 
-void readDht(int pin) //, float *temp, float *hum)
+/**
+ * @brief Read the Temperature and Humdiity from the DHT22 sensor
+ */
+void readDht(int pin, float *temp, float *hum)
 {
-    dht.read2(&state.Temperature, &state.Humidity, NULL);
-}
-
-void pushReading(float *readingArray, float newValue)
-{
-    // work backwards through the array, moving the contents back by one element
-    for (int i = config.AverageReadingCount - 2; i >= 0; i--)
-        readingArray[i + 1] = readingArray[i];
-
-    // set the first value to the new provided value
-    readingArray[0] = newValue;
-}
-
-void updateDtm()
-{
-    *state.CurrentDtm = rtc.now();
+    dht.read2(temp, hum, NULL);
 }

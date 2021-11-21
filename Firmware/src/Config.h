@@ -95,6 +95,11 @@ struct ConfigObject
    * higher than 62. 
    */
   uint8_t HumidityHysterisis;
+
+  /**
+   * @brief Voltage set point below which the AC power supply will automatically connect
+   */
+  float AcBackupPoint;
 };
 
 ConfigObject getDefaultConfig();
