@@ -19,13 +19,9 @@
  */
 
 // Output Format:
-// STAT|<ISO_DTM>|<UptimeSeconds>|<BytesFreeMem>
-// VOLT|<ISO_DTM>|<AvgVoltage>|<MinVoltage>|<MaxVoltage>
-// BATT|<ISO_DTM>|<AvgAmperage>|<MinAmperage>|<MaxAmperage>
-// LOAD|<ISO_DTM>|<AvgAmperage>|<MinAmperage>|<MaxAmperage>
-// SOLAR|<ISO_DTM>|<AvgAmperage>|<MinAmperage>|<MaxAmperage>
-// AC|<ISO_DTM>|<AvgAmperage>|<MinAmperage>|<MaxAmperage>
-// ENV|<ISO_DTM>|<CurrentTemperatureC>|<CurrentHumidityPercent>
+// <ISO_DTM>|STAT|<UptimeSeconds>|<BytesFreeMem>|<DehumEnabled>|<TelescopeOutState>|<DehumOutState>|<Aux1OutState>|<AcInState>
+// <ISO_DTM>|PWR|<Voltage>|<Battery>|<Load>|<Solar>|<AC>
+// <ISO_DTM>|ENV|<CurrentTemperatureC>|<CurrentHumidityPercent>
 // VERSION|<FirmwareVersion>
 // CONFIG|AverageReadingCount|<value>
 // CONFIG|UpdateFrequency|<value>
@@ -59,6 +55,17 @@
 // SET HumidityCalibration <val> - HumidityCalibration -- 
 // SET TargetHumidity <val> - TargetHumidity -- 
 // SET HumidityHysterisis <val> - HumidityHysterisis -- 
+// SET TIME <val in format yyyy-MM-ddTHH:mm:ss>
+// ENABLE DEHUM
+// DISABLE DEHUM
+// PWR ON TELESCOPE
+// PWR ON AUX1
+// PWR ON DEHUM
+// PWR ON AC
+// PWR OFF TELESCOPE
+// PWR OFF AUX1
+// PWR OFF DEHUM
+// PWR OFF AC
 // SAVE - Save the current config to the EEPROM
 // CLEAR - Reset the EEPROM to the default values 
 // PAUSE - Pause sensor readings
@@ -161,11 +168,6 @@ float *amps_load = 0;
 float *amps_solar = 0;
 
 /**
- * @brief Array holding all readings of AC amperage to be averaged
- */
-float *amps_ac = 0;
-
-/**
  * @brief Array holding all readings of voltage to be averaged
  */
 float *volts = 0;
@@ -190,7 +192,6 @@ ConfigObject config;
  */
 State state = {
     true,           // EnableReadings
-    false,          // TelescopeOutputEnabled
     0,              // LastWriteTime
     0,              // LastReadTime
     0,              // LastTick
@@ -199,6 +200,11 @@ State state = {
     0,              // UptimeSeconds
     0.0,            // Temperature
     0.0,            // Humidity
+    true,           // DehumEnabled
+    false,          // DehumOutState
+    false,          // TelescopeOutState
+    false,          // Aux1OutState
+    false,          // AcInState
 };
 
 /**
@@ -224,9 +230,26 @@ void setup()
     initConfig();
     allocateArrays();
     setupPins();
+    setupRtc();
 
-    // TODO: Remove from final code
-    state.CurrentDtm = new DateTime(2021, 11, 19, 13, 27, 0);
+    updateDtm();
+
+    inputString = "";
+}
+
+void setupRtc()
+{
+    rtc.begin();
+    
+    // this is only called if the time has never been set or after the battery has died
+    if (!rtc.initialized() || rtc.lostPower()) 
+    {
+        Serial.println(F("RTC Init"));
+
+        rtc.adjust(DateTime(2000, 1, 1, 0, 0, 0));
+    }
+
+    rtc.start();
 }
 
 void setupPins()
@@ -237,10 +260,11 @@ void setupPins()
     pinMode(PIN_AC_INPUT_RELAY, OUTPUT);
     pinMode(PIN_DEHUMIDIFIER_ENABLED_LED, OUTPUT);
 
-    digitalWrite(PIN_TELESCOPE_OUTPUT_RELAY, LOW);
-    digitalWrite(PIN_DEHUMIDIFIER_OUTPUT_RELAY, HIGH);
-    digitalWrite(PIN_AUX_OUTPUT_RELAY, HIGH);
-    digitalWrite(PIN_AC_INPUT_RELAY, HIGH);
+    // TODO: Fix this
+    digitalWrite(PIN_TELESCOPE_OUTPUT_RELAY, !state.TelescopeOutState);
+    digitalWrite(PIN_DEHUMIDIFIER_OUTPUT_RELAY, !state.DehumOutState);
+    digitalWrite(PIN_AUX_OUTPUT_RELAY, !state.Aux1OutState);
+    digitalWrite(PIN_AC_INPUT_RELAY, !state.AcInState);
 }
 
 void initConfig()
@@ -268,9 +292,6 @@ void loop()
     // print the string when a newline arrives:
     if (stringComplete)
     {
-        inputString.replace("\r", "");
-        inputString.replace("\n", "");
-
         handleSerialCommand(&inputString);
 
         // clear the string:
@@ -299,18 +320,22 @@ void loop()
         {
             pushReading(volts, getVoltage(PIN_VOLTAGE));
             pushReading(amps_battery, getAmperage(PIN_BATT_AMPERAGE, config.AmpDigitalOffset1));
-            pushReading(amps_load, getAmperage(PIN_LOAD_AMPERAGE, config.AmpDigitalOffset2));
-            pushReading(amps_solar, getAmperage(PIN_SOLAR_AMPERAGE, config.AmpDigitalOffset3));
+            pushReading(amps_load, (getAmperage(PIN_LOAD_AMPERAGE, config.AmpDigitalOffset2)*-1));
+            pushReading(amps_solar, (getAmperage(PIN_SOLAR_AMPERAGE, config.AmpDigitalOffset3)*-1));
 
-            // TODO: calculate AC amperage
-            pushReading(amps_ac, 0.0);
+            state.Volt = getAvgReading(volts, config.AverageReadingCount);
+            state.BatteryAmp = getAvgReading(amps_battery, config.AverageReadingCount);
+            state.LoadAmp = getAvgReading(amps_load, config.AverageReadingCount);
+            state.SolarAmp = getAvgReading(amps_solar, config.AverageReadingCount);
+            state.AcAmp = state.BatteryAmp + state.LoadAmp - state.SolarAmp;
 
             state.LastReadTime = millis();
         }
 
         if (state.LastDhtReadTime == 0 || (millis() - state.LastDhtReadTime) >= ENV_WRITE_DELAY)
         {
-            readDht(PIN_DHT, state.Temperature, state.Humidity);
+            // TODO: fix this
+            readDht(PIN_DHT); //, state.Temperature, state.Humidity);
             printEnvironmentStatus(state, config);
 
             state.LastDhtReadTime = millis();
@@ -319,11 +344,7 @@ void loop()
         // we only want to send the current values periodically, even though we refresh internally multiple times per second
         if (state.LastWriteTime == 0 || ((millis() - state.LastWriteTime) >= (config.WriteInterval * 1000)))
         {
-            printVoltStatus(state, config, volts);
-            printAmpStatus(state, config, amps_battery, F("BATT"));
-            printAmpStatus(state, config, amps_load, F("LOAD"));
-            printAmpStatus(state, config, amps_solar, F("SOLAR"));
-            printAmpStatus(state, config, amps_ac, F("AC"));
+            printPowerStatus(state, config);
 
             state.LastWriteTime = millis();
         }
@@ -339,13 +360,11 @@ void allocateArrays()
     amps_battery = new float[config.AverageReadingCount];
     amps_load = new float[config.AverageReadingCount];
     amps_solar = new float[config.AverageReadingCount];
-    amps_ac = new float[config.AverageReadingCount];
 
     initializeArray(volts);
     initializeArray(amps_battery);
     initializeArray(amps_load);
     initializeArray(amps_solar);
-    initializeArray(amps_ac);
 }
 
 /**
@@ -373,9 +392,6 @@ void reallocateArrays()
 
     if (amps_solar != 0)
         delete[] amps_solar;
-
-    if (amps_ac != 0)
-        delete[] amps_ac;
 
     allocateArrays();
 }
@@ -421,22 +437,80 @@ void serialEvent()
         char inChar = (char)Serial.read();
 
         // add it to the inputString:
-        inputString += inChar;
+        if (inChar != '\n' && inChar != '\r')
+            inputString += inChar;
 
         // if the incoming character is a newline, set a flag
         // so the main loop can do something about it:
         if (inChar == '\n')
+        {
             stringComplete = true;
+            inputString += '\0';
+        }
     }
+}
+
+void setRelayState(boolean *target, uint8_t pin, boolean newState)
+{
+    *target = newState;
+
+    digitalWrite(pin, !newState);
 }
 
 void handleSerialCommand(String *commandLine)
 {
-    if (commandLine->startsWith(F("SET")))
+    boolean fail = false;
+
+    if (commandLine->startsWith(F("PWR")))
     {
         *commandLine = commandLine->substring(4);
 
-        if (commandLine->startsWith(F("AverageReadingCount")))
+        byte cmd = 250;
+
+        if (commandLine->startsWith(F("ON")))
+        {
+            *commandLine = commandLine->substring(3);
+            cmd = 1;
+        }
+
+        if (commandLine->startsWith(F("OFF")))
+        {
+            *commandLine = commandLine->substring(4);
+            cmd = 0;
+        }
+
+        if (cmd <= 1)
+        {
+            if (commandLine->startsWith(F("TELESCOPE")))
+                setRelayState(&state.TelescopeOutState, PIN_TELESCOPE_OUTPUT_RELAY, (cmd == 1));
+            else if (commandLine->startsWith(F("AUX1")))
+                setRelayState(&state.Aux1OutState, PIN_AUX_OUTPUT_RELAY, (cmd == 1));
+            else if (commandLine->startsWith(F("DEHUM")))
+                setRelayState(&state.DehumOutState, PIN_DEHUMIDIFIER_OUTPUT_RELAY, (cmd == 1));
+            else if (commandLine->startsWith(F("AC")))
+                setRelayState(&state.AcInState, PIN_AC_INPUT_RELAY, (cmd == 1));
+            else
+                fail = true;
+        }
+        else
+            fail = true;
+    }
+    else if (commandLine->startsWith(F("SET")))
+    {
+        *commandLine = commandLine->substring(4);
+
+        if (commandLine->startsWith(F("TIME")))
+        {
+            *commandLine = commandLine->substring(5);
+
+            // 2020-06-25T15:29:37
+            char dtmStr[20];
+            memset(dtmStr, 0, 20);
+            commandLine->toCharArray(dtmStr, 20, 0);         
+
+            rtc.adjust(DateTime(dtmStr));
+        }
+        else if (commandLine->startsWith(F("AverageReadingCount")))
         {
             *commandLine = commandLine->substring(20);
             config.AverageReadingCount = commandLine->toInt();
@@ -573,8 +647,10 @@ void handleSerialCommand(String *commandLine)
         state.EnableReadings = true;
         Serial.println(F("OK"));
     }
-
     else
+        fail = true;
+
+    if (fail)
         Serial.println(F("FAIL"));
 }
 
@@ -606,9 +682,9 @@ float getAmperage(int pin, int offset)
     return ((tmpVoltage - ACSoffset) / mVperAmp);
 }
 
-void readDht(int pin, float temp, float hum)
+void readDht(int pin) //, float *temp, float *hum)
 {
-    dht.read2(&temp, &hum, NULL);
+    dht.read2(&state.Temperature, &state.Humidity, NULL);
 }
 
 void pushReading(float *readingArray, float newValue)
@@ -623,8 +699,5 @@ void pushReading(float *readingArray, float newValue)
 
 void updateDtm()
 {
-    delete (state.CurrentDtm);
-    DateTime *tmpDtm = new DateTime(2021, 11, 19, 13, 27, 0);
-    state.CurrentDtm = new DateTime(tmpDtm->unixtime() + state.UptimeSeconds);
-    delete (tmpDtm);
+    *state.CurrentDtm = rtc.now();
 }

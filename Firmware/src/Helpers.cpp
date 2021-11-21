@@ -14,31 +14,31 @@ float getAvgReading(float* readingArray, uint8_t avgCount)
   return (float)total/count;
 }
 
-float getMinReading(float* readingArray, uint8_t avgCount)
-{
-  float lastMin = 0;
+// float getMinReading(float* readingArray, uint8_t avgCount)
+// {
+//   float lastMin = 0;
   
-  for (int i = 0; i < avgCount; i++)
-  {
-    if (readingArray[i] <= lastMin || lastMin == 0)
-      lastMin = readingArray[i];
-  }
+//   for (int i = 0; i < avgCount; i++)
+//   {
+//     if (readingArray[i] <= lastMin || lastMin == 0)
+//       lastMin = readingArray[i];
+//   }
 
-  return lastMin;
-}
+//   return lastMin;
+// }
 
-float getMaxReading(float* readingArray, uint8_t avgCount)
-{
-  float lastMax = 0.0;
+// float getMaxReading(float* readingArray, uint8_t avgCount)
+// {
+//   float lastMax = 0.0;
   
-  for (int i = 0; i < avgCount; i++)
-  {
-    if (readingArray[i] >= lastMax)
-      lastMax = readingArray[i];
-  }
+//   for (int i = 0; i < avgCount; i++)
+//   {
+//     if (readingArray[i] >= lastMax)
+//       lastMax = readingArray[i];
+//   }
 
-  return lastMax;
-}
+//   return lastMax;
+// }
 
 #ifdef __arm__
 // should use uinstd.h to define sbrk but Due causes a conflict

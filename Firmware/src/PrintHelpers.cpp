@@ -18,6 +18,18 @@ void printWithPipe(const float f)
     Serial.print(F("|"));
 }
 
+void printWithPipe(const int i)
+{
+    Serial.print(i);
+    Serial.print(F("|"));
+}
+
+void printWithPipe(const boolean b)
+{
+    Serial.print(b);
+    Serial.print(F("|"));
+}
+
 void printWithPipe(const uint32_t ul)
 {
     Serial.print(ul);
@@ -50,28 +62,24 @@ void printSystemStatus(State &state, ConfigObject &config)
     printWithPipe(state.CurrentDtm->timestamp());
     printWithPipe(F("STAT"));
     printWithPipe(state.UptimeSeconds);
-    Serial.println(getFreeMemory());
+    printWithPipe(getFreeMemory());
+    printWithPipe(state.DehumEnabled);
+    printWithPipe(state.TelescopeOutState);
+    printWithPipe(state.DehumOutState);
+    printWithPipe(state.Aux1OutState);
+    Serial.println(state.AcInState);
 }
 
-void printAmpStatus(State &state, ConfigObject &config, float *amp_array, const __FlashStringHelper *ifsh)
+void printPowerStatus(State &state, ConfigObject &config)
 {
     printWithPipe(state.CurrentDtm->timestamp());
-    printWithPipe(ifsh);
-    printWithPipe(getAvgReading(amp_array, config.AverageReadingCount));
-    printWithPipe(getMinReading(amp_array, config.AverageReadingCount));
-    Serial.println(getMaxReading(amp_array, config.AverageReadingCount));
-}
+    printWithPipe(F("PWR"));
 
-/**
- * @brief Write voltage stats to serial
- */
-void printVoltStatus(State &state, ConfigObject &config, float *volts)
-{
-    printWithPipe(state.CurrentDtm->timestamp());
-    printWithPipe(F("VOLT"));
-    printWithPipe(getAvgReading(volts, config.AverageReadingCount));
-    printWithPipe(getMinReading(volts, config.AverageReadingCount));
-    Serial.println(getMaxReading(volts, config.AverageReadingCount));
+    printWithPipe(state.Volt);
+    printWithPipe(state.BatteryAmp);
+    printWithPipe(state.LoadAmp);
+    printWithPipe(state.SolarAmp);
+    Serial.println(state.AcAmp);
 }
 
 void printConfigEntryHeader(const String &s)

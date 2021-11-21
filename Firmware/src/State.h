@@ -15,11 +15,6 @@ struct State
      */
     boolean EnableReadings;
 
-    /**
-     * @brief If true, the output to the telescope is enabled
-     */
-    boolean TelescopeOutputEnabled;
-
     /** 
      * @brief Milliseconds of last time status was written to serial port
      */
@@ -63,6 +58,25 @@ struct State
      */
     float Humidity;
 
+    boolean DehumEnabled;
+
+    boolean DehumOutState;
+
+    boolean TelescopeOutState;
+
+    boolean Aux1OutState;
+
+    boolean AcInState;
+
+    float Volt;
+
+    float BatteryAmp;
+
+    float LoadAmp;
+
+    float SolarAmp;
+
+    float AcAmp;
 };
 
 #endif // _STATE_H
