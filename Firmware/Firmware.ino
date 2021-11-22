@@ -74,6 +74,8 @@
 // PAUSE - Pause sensor readings
 // RESUME - Resume sensor readings
 // PING - Notify the controller that the PC is still alive
+// PC OFF - Notify the controller that the PC is no longer connected
+// PC ON - Notify the controller that the PC is now connected
 
 // Config Option conversion:
 //   AverageReadingCount[19]      => AvgRdCt[7] .. 24 bytes saved
@@ -261,7 +263,8 @@ State state = {
     false,          // DehumOutState
     false,          // TelescopeOutState
     false,          // Aux1OutState
-    false           // AcInState
+    false,          // AcInState
+    false           // PcConnected
 };
 
 /**
@@ -653,12 +656,14 @@ void setHumidityControl(bool newState)
     digitalWrite(PIN_DEHUMIDIFIER_ENABLED_LED, state.DehumEnabled);
 }
 
-bool writeToSd = false;
-
+/**
+ * @brief Check if the time since last ping has exceeded the threshold, if so
+ * mark the PC as disconnected
+ */
 void checkPing()
 {
-    if (state.LastPingSeconds > MAX_PING_TIME && !writeToSd)
-        writeToSd = true;
+    if (state.LastPingSeconds > MAX_PING_TIME && !state.PcConnected)
+        state.PcConnected = false;
 }
 
 //========================================================================
@@ -741,29 +746,44 @@ void handleSerialCommand(const char *command)
             fail = true;
     }
 
-    else if (startsWith_p(command, STR_CONFIG))
+    else if (startsWith_p(command, STR_CONFIG, offset))
         printConfig(Serial, config, state);
 
-    else if (startsWith_p(command, STR_VERSION))
+    else if (startsWith_p(command, STR_VERSION, offset))
     {
         printTimestamp(Serial, state.CurrentDtm);
         printPipePair_p(Serial, STR_VERSION, VERSION, true);
     }
 
-    else if (startsWith_p(command, STR_SAVE))
+    else if (startsWith_p(command, STR_SAVE, offset))
         writeConfig();
 
-    else if (startsWith_p(command, STR_CLEAR))
+    else if (startsWith_p(command, STR_CLEAR, offset))
         writeDefaultConfig();
 
-    else if (startsWith_p(command, STR_PAUSE))
+    else if (startsWith_p(command, STR_PAUSE, offset))
         state.EnableReadings = false;
 
-    else if (startsWith_p(command, STR_RESUME))
+    else if (startsWith_p(command, STR_RESUME, offset))
         state.EnableReadings = true;
 
-    else if (startsWith_p(command, STR_PING))
+    else if (startsWith_p(command, STR_PING, offset))
         state.LastPingSeconds = 0;
+
+    else if (startsWith_p(command, STR_PC, offset))
+    {
+        offset += strlen_P(STR_PC) + 1;
+
+        if (startsWith_p(command, STR_ON, offset))
+        {
+            state.PcConnected = true;
+            state.LastPingSeconds = 0;
+        }
+        else if (startsWith_p(command, STR_OFF, offset))
+            state.PcConnected = false;
+        else
+            fail = true;
+    }
 
     else
         fail = true;

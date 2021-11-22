@@ -93,6 +93,8 @@ struct State
     float SolarAmp;
 
     float AcAmp;
+
+    bool PcConnected;
 };
 
 #endif // _STATE_H
