@@ -7,7 +7,7 @@ ConfigObject getDefaultConfig()
 {
     return ConfigObject {
         -1337, // Defined
-        15,    // AverageReadingCount
+        10,    // AverageReadingCount
         2,     // UpdateFrequency
         2,     // WriteInterval
         0.0,   // VoltageCalibration

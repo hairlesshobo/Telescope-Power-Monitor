@@ -67,7 +67,9 @@ void printSystemStatus(State &state, ConfigObject &config)
     printWithPipe(state.TelescopeOutState);
     printWithPipe(state.DehumOutState);
     printWithPipe(state.Aux1OutState);
-    Serial.println(state.AcInState);
+    printWithPipe(state.AcInState);
+    printWithPipe((uint32_t)state.BatteryCurrentStateSeconds);
+    Serial.println(state.DehumCurrentStateSeconds);
 }
 
 void printPowerStatus(State &state, ConfigObject &config)

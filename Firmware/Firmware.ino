@@ -19,7 +19,7 @@
  */
 
 // Output Format:
-// <ISO_DTM>|STAT|<UptimeSeconds>|<BytesFreeMem>|<DehumEnabled>|<TelescopeOutState>|<DehumOutState>|<Aux1OutState>|<AcInState>
+// <ISO_DTM>|STAT|<UptimeSeconds>|<BytesFreeMem>|<DehumEnabled>|<TelescopeOutState>|<DehumOutState>|<Aux1OutState>|<AcInState>|<BatteryCurrentStateSeconds>|<DehumCurrentStateSeconds>
 // <ISO_DTM>|PWR|<Voltage>|<Battery>|<Load>|<Solar>|<AC>
 // <ISO_DTM>|ENV|<CurrentTemperatureC>|<CurrentHumidityPercent>
 // VERSION|<FirmwareVersion>
@@ -43,19 +43,19 @@
 // Input commands:
 // VERSION - Get the current firmware version
 // CONFIG - Get the current controller configuration
-// SET AverageReadingCount <val> - AverageReadingCount -- 
-// SET UpdateFrequency <val> - UpdateFrequency -- 
-// SET WriteInterval <val> - WriteInterval -- 
-// SET VoltageCalibration <val> - VoltageCalibration -- 
-// SET R1Actual <val> - R1Actual -- 
-// SET R2Actual <val> - R2Actual -- 
-// SET AmpDigitalOffset1 <val> - AmpDigitalOffset1 -- Digital offset for the battery amperage
-// SET AmpDigitalOffset2 <val> - AmpDigitalOffset2 -- Digital offset for the load amperage
-// SET AmpDigitalOffset3 <val> - AmpDigitalOffset3 -- Digital offset for the solar amperage
-// SET TemperatureCalibration <val> - TemperatureCalibration -- 
-// SET HumidityCalibration <val> - HumidityCalibration -- 
-// SET TargetHumidity <val> - TargetHumidity -- 
-// SET HumidityHysterisis <val> - HumidityHysterisis -- 
+// SET AverageReadingCount <val> - AvgRdCt -- 
+// SET UpdateFrequency <val> - UdFreq -- 
+// SET WriteInterval <val> - WrtInt -- 
+// SET VoltageCalibration <val> - VCal -- 
+// SET R1Actual <val> - R1Val -- 
+// SET R2Actual <val> - R2Val -- 
+// SET AmpDigitalOffset1 <val> - ADO1 -- Digital offset for the battery amperage
+// SET AmpDigitalOffset2 <val> - ADO2 -- Digital offset for the load amperage
+// SET AmpDigitalOffset3 <val> - ADO3 -- Digital offset for the solar amperage
+// SET TemperatureCalibration <val> - TCal -- 
+// SET HumidityCalibration <val> - HCal -- 
+// SET TargetHumidity <val> - TgHum -- 
+// SET HumidityHysterisis <val> - HumHys -- 
 // SET AcBackupPoint <val> - ACBV --
 // SET TIME <val in format yyyy-MM-ddTHH:mm:ss>
 // ENABLE DEHUM
@@ -132,7 +132,13 @@
 //========================================================================
 
 #define ENV_WRITE_DELAY 2500
-// #define OVERWRITE_EEPROM
+#define HUMIDITY_CHANGE_MIN_SECOND 30
+#define HUMIDITY_CHECK_DELAY 7500
+
+#define BATTERY_CHECK_DELAY 5000
+#define BATTERY_CHANGE_MIN_SECOND 30
+
+#define OVERWRITE_EEPROM
 
 //========================================================================
 #pragma endregion
@@ -157,8 +163,8 @@ const uint8_t PIN_SOLAR_AMPERAGE = A3;
 
 // const uint8_t PIN_RX = 0;
 // const uint8_t PIN_TX = 1;
-const uint8_t PIN_TOGGLE_TELESCOPE_OUTPUT_BUTTON = 2;
-const uint8_t PIN_TOGGLE_DEHUMIDIFIER_OUTPUT_BUTTON = 3;
+const uint8_t PIN_TOGGLE_DEHUMIDIFIER_OUTPUT_BUTTON = 2;
+const uint8_t PIN_TOGGLE_TELESCOPE_OUTPUT_BUTTON = 3;
 const uint8_t PIN_TELESCOPE_OUTPUT_RELAY = 4;
 const uint8_t PIN_DEHUMIDIFIER_OUTPUT_RELAY = 5;
 const uint8_t PIN_AUX_OUTPUT_RELAY = 6;
@@ -198,6 +204,21 @@ float *amps_solar = 0;
 float *volts = 0;
 
 /**
+ * @brief This is to ensure that we have enough readings to start sending output
+ */
+uint8_t readings = 0;
+
+/**
+ * @brief Debounce tracking for humidity control button
+ */
+int dehumButtonLastState = LOW;
+
+/**
+ * @brief Debounce tracking for telescope output button
+ */
+int telescopeButtonLastState = LOW;
+
+/**
  * @brief String object used to hold input read from serial port
  */
 String inputString = "";
@@ -221,10 +242,14 @@ State state = {
     0,              // LastReadTime
     0,              // LastTick
     0,              // LastDhtReadTime
+    0,              // LastHumidityCheckTime
+    0,              // LastBatteryCheckTime
     new DateTime(), // CurrentDtm
     0,              // UptimeSeconds
     0.0,            // Temperature
     0.0,            // Humidity
+    0,              // DehumCurrentStateSeconds
+    0,              // BatteryCurrentStateSeconds
     true,           // DehumEnabled
     false,          // DehumOutState
     false,          // TelescopeOutState
@@ -357,6 +382,8 @@ void setupPins()
     setRelayState(&state.DehumOutState, PIN_DEHUMIDIFIER_OUTPUT_RELAY, state.DehumOutState);
     setRelayState(&state.Aux1OutState, PIN_AUX_OUTPUT_RELAY, state.Aux1OutState);
     setRelayState(&state.AcInState, PIN_AC_INPUT_RELAY, state.AcInState);
+
+    setHumidityControl(state.DehumEnabled);
 }
 
 /**
@@ -391,64 +418,20 @@ void initConfig()
  */
 void loop()
 {
-    // print the string when a newline arrives:
-    if (stringComplete)
-    {
-        handleSerialCommand(&inputString);
+    processSerialInput();
 
-        // clear the string:
-        inputString = "";
-        stringComplete = false;
-    }
-
-    // update the clock
-    if (state.LastTick == 0 || (millis() - state.LastTick) >= 1000)
-    {
-        state.UptimeSeconds = millis() / 1000;
-        updateDtm();
-
-        // TODO: For testing only.. remove for final code
-        digitalWrite(PIN_DEHUMIDIFIER_ENABLED_LED, !digitalRead(PIN_DEHUMIDIFIER_ENABLED_LED));
-
-        printSystemStatus(state, config);
-
-        state.LastTick = millis();
-    }
+    updateClock();
 
     if (state.EnableReadings)
     {
-        if (state.LastReadTime == 0 || (millis() - state.LastReadTime) >= config.UpdateFrequency)
-        {
-            pushReading(volts, getVoltage(PIN_VOLTAGE));
-            pushReading(amps_battery, getAmperage(PIN_BATT_AMPERAGE, config.AmpDigitalOffset1));
-            pushReading(amps_load, (getAmperage(PIN_LOAD_AMPERAGE, config.AmpDigitalOffset2)*-1));
-            pushReading(amps_solar, (getAmperage(PIN_SOLAR_AMPERAGE, config.AmpDigitalOffset3)*-1));
-
-            state.Volt = getAvgReading(volts, config.AverageReadingCount);
-            state.BatteryAmp = getAvgReading(amps_battery, config.AverageReadingCount);
-            state.LoadAmp = getAvgReading(amps_load, config.AverageReadingCount);
-            state.SolarAmp = getAvgReading(amps_solar, config.AverageReadingCount);
-            state.AcAmp = state.BatteryAmp + state.LoadAmp - state.SolarAmp;
-
-            state.LastReadTime = millis();
-        }
-
-        if (state.LastDhtReadTime == 0 || (millis() - state.LastDhtReadTime) >= ENV_WRITE_DELAY)
-        {
-            readDht(PIN_DHT, &state.Temperature, &state.Humidity);
-            printEnvironmentStatus(state, config);
-
-            state.LastDhtReadTime = millis();
-        }
-
-        // we only want to send the current values periodically, even though we refresh internally multiple times per second
-        if (state.LastWriteTime == 0 || ((millis() - state.LastWriteTime) >= (config.WriteInterval * 1000)))
-        {
-            printPowerStatus(state, config);
-
-            state.LastWriteTime = millis();
-        }
+        readPowerSensors();
+        readEnvSensors();
     }
+
+    checkHumidity();
+    checkBattery();
+    readDehumButton();
+    readTelescopeButton();
 }
 
 /**
@@ -476,6 +459,186 @@ void serialEvent()
             inputString += '\0';
         }
     }
+}
+
+/**
+ * @brief Handle incoming serial command, if it is ready
+ */
+void processSerialInput()
+{
+    // print the string when a newline arrives:
+    if (stringComplete)
+    {
+        handleSerialCommand(&inputString);
+
+        // clear the string:
+        inputString = "";
+        stringComplete = false;
+    }
+}
+
+/**
+ * @brief Update all clock related variables
+ */
+void updateClock()
+{
+    // update the clock
+    if (state.LastTick == 0 || (millis() - state.LastTick) >= 1000)
+    {
+        updateDtm();
+        printSystemStatus(state, config);
+
+        state.LastTick = millis();
+    }
+}
+
+/**
+ * @brief Read voltage and amperage sensors
+ */
+void readPowerSensors()
+{
+    if (state.LastReadTime == 0 || (millis() - state.LastReadTime) >= (1000 / config.UpdateFrequency))
+    {
+        pushReading(volts, getVoltage(PIN_VOLTAGE));
+        pushReading(amps_battery, getAmperage(PIN_BATT_AMPERAGE, config.AmpDigitalOffset1));
+        pushReading(amps_load, (getAmperage(PIN_LOAD_AMPERAGE, config.AmpDigitalOffset2)*-1));
+        pushReading(amps_solar, (getAmperage(PIN_SOLAR_AMPERAGE, config.AmpDigitalOffset3)*-1));
+
+        state.Volt = getAvgReading(volts, config.AverageReadingCount);
+        state.BatteryAmp = getAvgReading(amps_battery, config.AverageReadingCount);
+        state.LoadAmp = getAvgReading(amps_load, config.AverageReadingCount);
+        state.SolarAmp = getAvgReading(amps_solar, config.AverageReadingCount);
+        state.AcAmp = state.BatteryAmp + state.LoadAmp - state.SolarAmp;
+
+        // increment the reading counter if it is less than the number we need to average
+        if (readings < config.AverageReadingCount)
+            readings++;
+
+        state.LastReadTime = millis();
+
+        // we only want to send the current values periodically, even though we refresh internally multiple times per second
+        if (state.LastWriteTime == 0 || ((millis() - state.LastWriteTime) >= (config.WriteInterval * 1000)))
+        {
+            // only write if we have enough readings to average
+            if (readings == config.AverageReadingCount)
+            {
+                printPowerStatus(state, config);
+
+                state.LastWriteTime = millis();
+            }
+        }
+    }
+}
+
+/**
+ * @brief Read temperature/humidity sensors
+ */
+void readEnvSensors()
+{
+    if (state.LastDhtReadTime == 0 || (millis() - state.LastDhtReadTime) >= ENV_WRITE_DELAY)
+    {
+        readDht(PIN_DHT, &state.Temperature, &state.Humidity);
+        printEnvironmentStatus(state, config);
+
+        state.LastDhtReadTime = millis();
+    }
+}
+
+/**
+ * @brief Routine that is run to check if humidity control needs to be turned on or off
+ */
+void checkHumidity()
+{
+    // if humidity control is disabled, but the output is currently on
+    if (state.DehumEnabled == false && state.DehumOutState == true)
+    {
+        setRelayState(&state.DehumOutState, PIN_DEHUMIDIFIER_OUTPUT_RELAY, false);
+        state.DehumCurrentStateSeconds = 0;
+    }
+
+    // we don't check the humidity level if automatic humidity control has been disabled
+    if (state.DehumEnabled == false)
+        return;
+
+    // we don't check the humidity level if the state has changed since the minimum threshold
+    if (state.DehumCurrentStateSeconds < HUMIDITY_CHANGE_MIN_SECOND)
+        return;
+
+    if (state.LastHumidityCheckTime == 0 || (millis() - state.LastHumidityCheckTime) > HUMIDITY_CHECK_DELAY)
+    {
+        uint8_t onThreshold = config.TargetHumidity + (config.HumidityHysterisis / 2);
+        uint8_t offThreshold = config.TargetHumidity - (config.HumidityHysterisis / 2);
+
+        if (state.Humidity >= onThreshold)
+        {
+            setRelayState(&state.DehumOutState, PIN_DEHUMIDIFIER_OUTPUT_RELAY, true);
+            state.DehumCurrentStateSeconds = 0;
+        }
+        else if (state.Humidity <= offThreshold)
+        {
+            setRelayState(&state.DehumOutState, PIN_DEHUMIDIFIER_OUTPUT_RELAY, false);
+            state.DehumCurrentStateSeconds = 0;
+        }
+
+        state.LastHumidityCheckTime = millis();
+    }
+}
+
+/**
+ * @brief Routine that is run to check if the battery charge level has dropped low enough to 
+ * require the AC backup to be engaged
+ */
+void checkBattery()
+{
+    // nothing to do right now, this is a placeholder for after the 
+    // capacity tracking is enabled
+}
+
+/**
+ * @brief Check for button press on the humidity control button
+ */ 
+void readDehumButton()
+{
+    int currentState = digitalRead(PIN_TOGGLE_DEHUMIDIFIER_OUTPUT_BUTTON);
+
+    // state has changed
+    if (currentState != dehumButtonLastState)
+    {
+        // button is pressed
+        if (currentState == LOW)
+            setHumidityControl(!state.DehumEnabled);
+
+        delay(20);
+        dehumButtonLastState = currentState;
+    }
+}
+
+/**
+ * @brief Check for button press on the telescope output button
+ */
+void readTelescopeButton()
+{
+    int currentState = digitalRead(PIN_TOGGLE_TELESCOPE_OUTPUT_BUTTON);
+
+    // state has changed
+    if (currentState != telescopeButtonLastState)
+    {
+        // button is pressed
+        if (currentState == LOW)
+            setRelayState(&state.TelescopeOutState, PIN_TELESCOPE_OUTPUT_RELAY, !state.TelescopeOutState);
+
+        delay(20);
+        telescopeButtonLastState = currentState;
+    }
+}
+
+/**
+ * @brief Helper used for setting the humidity control state and updating the LED to match
+ */
+void setHumidityControl(bool newState)
+{
+    state.DehumEnabled = newState;
+    digitalWrite(PIN_DEHUMIDIFIER_ENABLED_LED, state.DehumEnabled);
 }
 
 //========================================================================
@@ -598,7 +761,6 @@ void handleSerialCommand(String *commandLine)
         Serial.println(F("FAIL"));
 }
 
-
 /**
  * @brief Parse an incoming serial config floating point value
  */
@@ -693,6 +855,8 @@ void writeDefaultConfig()
  */
 void allocateArrays()
 {
+    readings = 0;
+
     volts = new float[config.AverageReadingCount];
     amps_battery = new float[config.AverageReadingCount];
     amps_load = new float[config.AverageReadingCount];
@@ -752,6 +916,11 @@ void pushReading(float *readingArray, float newValue)
 void updateDtm()
 {
     *state.CurrentDtm = rtc.now();
+
+    // TODO: is there a way to set an alarm on the RTC and then read it in software to see if it has triggered.. to ensure 1 second has actually passed vs using millis()
+    state.UptimeSeconds = millis() / 1000;
+    state.DehumCurrentStateSeconds += 1;
+    state.BatteryCurrentStateSeconds += 1;
 }
 
 //========================================================================

@@ -36,6 +36,16 @@ struct State
     uint32_t LastDhtReadTime;
 
     /**
+     * @brief Number of milliseconds of time the humidity was last checked
+     */
+    uint32_t LastHumidityCheckTime;
+
+    /**
+     * @brief Number of milliseconds of time the battery voltage was last checked
+     */
+    uint32_t LastBatteryCheckTime;
+
+    /**
      * @brief Most recent DTM as read from the RTC
      */
     DateTime* CurrentDtm;
@@ -57,6 +67,10 @@ struct State
      * @brief Most recent humidity reading
      */
     float Humidity;
+
+    uint16_t DehumCurrentStateSeconds;
+
+    uint16_t BatteryCurrentStateSeconds;
 
     boolean DehumEnabled;
 

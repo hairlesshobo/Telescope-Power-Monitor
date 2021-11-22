@@ -16,7 +16,7 @@ struct ConfigObject
   /**
    * @brief How many readings should be averaged together
    * 
-   * Valid range: 3 - 128
+   * Valid range: 2 - 15
    */
   uint8_t AverageReadingCount;
 
