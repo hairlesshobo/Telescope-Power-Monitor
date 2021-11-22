@@ -1,127 +1,134 @@
 #include "PrintHelpers.h"
 
-void printWithPipe(const __FlashStringHelper *ifsh)
+void PrintTimestamp(Print &target, DateTime *dtm)
 {
-    Serial.print(ifsh);
-    Serial.print(F("|"));
+    char buffer[20];
+    GetTimestamp(dtm, buffer);
+
+    target.print(buffer);
+    target.print(F("|"));
 }
 
-void printWithPipe(const String &s)
+
+void printWithPipe_P(Print &target, const char *text)
 {
-    Serial.print(s);
-    Serial.print(F("|"));
+    Write_P(target, text);
+    target.print(F("|"));
 }
 
-void printWithPipe(const float f)
+void printWithPipe(Print &target, const float f)
 {
-    Serial.print(f);
-    Serial.print(F("|"));
+    target.print(f);
+    target.print(F("|"));
 }
 
-void printWithPipe(const int i)
+void printWithPipe(Print &target, const int i)
 {
-    Serial.print(i);
-    Serial.print(F("|"));
+    target.print(i);
+    target.print(F("|"));
 }
 
-void printWithPipe(const boolean b)
+void printWithPipe(Print &target, const boolean b)
 {
-    Serial.print(b);
-    Serial.print(F("|"));
+    target.print(b);
+    target.print(F("|"));
 }
 
-void printWithPipe(const uint32_t ul)
+void printWithPipe(Print &target, const uint32_t ul)
 {
-    Serial.print(ul);
-    Serial.print(F("|"));
+    target.print(ul);
+    target.print(F("|"));
 }
 
-void printPipePair(const __FlashStringHelper *ifsh, const String &s, boolean newline = false)
+void printPipePair_P(Print &target, const char *name, const char *value, boolean newline = false)
 {
-    printWithPipe(ifsh);
+    printWithPipe_P(target, name);
+    target.print(value);
 
     if (newline)
-        Serial.println(s);
-    else
-        Serial.println(s);
+        target.println();
 }
 
 /**
  * @brief Write temperature and humidity stats to serial
  */
-void printEnvironmentStatus(State &state, ConfigObject &config)
+void printEnvironmentStatus(Print &target, State &state, ConfigObject &config)
 {
-    printWithPipe(state.CurrentDtm->timestamp());
-    printWithPipe(F("ENV"));
-    printWithPipe(state.Temperature);
-    Serial.println(state.Humidity);
+    PrintTimestamp(target, state.CurrentDtm);
+    printWithPipe_P(target, STR_ENV);
+    printWithPipe(target, state.Temperature);
+    target.println(state.Humidity);
 }
 
-void printSystemStatus(State &state, ConfigObject &config)
+void printSystemStatus(Print &target, State &state, ConfigObject &config)
 {
-    printWithPipe(state.CurrentDtm->timestamp());
-    printWithPipe(F("STAT"));
-    printWithPipe(state.UptimeSeconds);
-    printWithPipe(getFreeMemory());
-    printWithPipe(state.DehumEnabled);
-    printWithPipe(state.TelescopeOutState);
-    printWithPipe(state.DehumOutState);
-    printWithPipe(state.Aux1OutState);
-    printWithPipe(state.AcInState);
-    printWithPipe((uint32_t)state.BatteryCurrentStateSeconds);
-    Serial.println(state.DehumCurrentStateSeconds);
+    PrintTimestamp(target, state.CurrentDtm);
+    printWithPipe_P(target, STR_STAT);
+    printWithPipe(target, state.UptimeSeconds);
+    printWithPipe(target, getFreeMemory());
+    printWithPipe(target, state.DehumEnabled);
+    printWithPipe(target, state.TelescopeOutState);
+    printWithPipe(target, state.DehumOutState);
+    printWithPipe(target, state.Aux1OutState);
+    printWithPipe(target, state.AcInState);
+    printWithPipe(target, (uint32_t)state.BatteryCurrentStateSeconds);
+    target.println(state.DehumCurrentStateSeconds);
 }
 
-void printPowerStatus(State &state, ConfigObject &config)
+void printPowerStatus(Print &target, State &state, ConfigObject &config)
 {
-    printWithPipe(state.CurrentDtm->timestamp());
-    printWithPipe(F("PWR"));
+    PrintTimestamp(target, state.CurrentDtm);
+    printWithPipe_P(target, STR_PWR);
 
-    printWithPipe(state.Volt);
-    printWithPipe(state.BatteryAmp);
-    printWithPipe(state.LoadAmp);
-    printWithPipe(state.SolarAmp);
-    Serial.println(state.AcAmp);
+    printWithPipe(target, state.Volt);
+    printWithPipe(target, state.BatteryAmp);
+    printWithPipe(target, state.LoadAmp);
+    printWithPipe(target, state.SolarAmp);
+    target.println(state.AcAmp);
 }
 
-void printConfigEntryHeader(const String &s)
+void printConfigEntryHeader_P(Print &target, State &state, const char *name)
 {
-    printWithPipe(F("CONFIG"));
-    printWithPipe(s);
+    PrintTimestamp(target, state.CurrentDtm);
+    printWithPipe_P(target, STR_CONFIG);
+    printWithPipe_P(target, name);
 }
 
-void printConfigEntry(const String &s, int value)
+void printConfigEntry_P(Print &target, State &state, const char *name, int32_t value)
 {
-    printConfigEntryHeader(s);
-    Serial.println(value);
+    printConfigEntryHeader_P(target, state, name);
+    target.print(value);
+    target.println();
 }
 
-void printConfigEntry(const String &s, float value)
+void printConfigEntry_P(Print &target, State &state, const char *name, uint32_t value)
 {
-    printConfigEntryHeader(s);
-    Serial.println(value);
+    printConfigEntryHeader_P(target, state, name);
+    target.print(value);
+    target.println();
 }
 
-void printConfigEntry(const String &s, uint32_t value)
+void printConfigEntry_P(Print &target, State &state, const char *name, float value)
 {
-    printConfigEntryHeader(s);
-    Serial.println(value);
+    printConfigEntryHeader_P(target, state, name);
+    target.print(value);
+    target.println();
 }
 
-void printConfig(ConfigObject &config)
+void printConfig(Print &target, ConfigObject &config, State &state)
 {
-    printConfigEntry(F("AverageReadingCount"), config.AverageReadingCount);
-    printConfigEntry(F("UpdateFrequency"), (uint32_t)config.UpdateFrequency);
-    printConfigEntry(F("WriteInterval"), (uint32_t)config.WriteInterval);
-    printConfigEntry(F("VoltageCalibration"), config.VoltageCalibration);
-    printConfigEntry(F("R1Actual"), (uint32_t)config.R1Actual);
-    printConfigEntry(F("R2Actual"), (uint32_t)config.R2Actual);
-    printConfigEntry(F("AmpDigitalOffset1"), (uint32_t)config.AmpDigitalOffset1);
-    printConfigEntry(F("AmpDigitalOffset2"), (uint32_t)config.AmpDigitalOffset2);
-    printConfigEntry(F("AmpDigitalOffset3"), (uint32_t)config.AmpDigitalOffset3);
-    printConfigEntry(F("TemperatureCalibration"), config.TemperatureCalibration);
-    printConfigEntry(F("HumidityCalibration"), config.HumidityCalibration);
-    printConfigEntry(F("TargetHumidity"), (uint32_t)config.TargetHumidity);
-    printConfigEntry(F("HumidityHysterisis"), (uint32_t)config.HumidityHysterisis);
-    printConfigEntry(F("AcBackupPoint"), config.AcBackupPoint);
+    printConfigEntry_P(target, state, STR_AVERAGE_READING_COUNT, (uint32_t)config.AverageReadingCount);
+    printConfigEntry_P(target, state, STR_UPDATE_FREQUENCY, (uint32_t)config.UpdateFrequency);
+    printConfigEntry_P(target, state, STR_WRITE_INTERVAL, (uint32_t)config.WriteInterval);
+    printConfigEntry_P(target, state, STR_VOLTAGE_CALIBRATION, config.VoltageCalibration);
+    printConfigEntry_P(target, state, STR_R1_ACTUAL, (uint32_t)config.R1Actual);
+    printConfigEntry_P(target, state, STR_R2_ACTUAL, (uint32_t)config.R2Actual);
+    printConfigEntry_P(target, state, STR_AMP_DIGITAL_OFFSET_1, (int32_t)config.AmpDigitalOffset1);
+    printConfigEntry_P(target, state, STR_AMP_DIGITAL_OFFSET_2, (int32_t)config.AmpDigitalOffset2);
+    printConfigEntry_P(target, state, STR_AMP_DIGITAL_OFFSET_3, (int32_t)config.AmpDigitalOffset3);
+    printConfigEntry_P(target, state, STR_TEMPERATURE_CALIBRATION, config.TemperatureCalibration);
+    printConfigEntry_P(target, state, STR_HUMIDITY_CALIBRATION, config.HumidityCalibration);
+    printConfigEntry_P(target, state, STR_TARGET_HUMIDITY, (uint32_t)config.TargetHumidity);
+    printConfigEntry_P(target, state, STR_HUMIDITY_HYSTERISIS, (uint32_t)config.HumidityHysterisis);
+    printConfigEntry_P(target, state, STR_AC_BACKUP_POINT, config.AcBackupPoint);
 }

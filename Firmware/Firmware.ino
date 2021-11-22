@@ -1,3 +1,4 @@
+
 /**
  *  Telescope Power Monitor - Firmware
  * 
@@ -22,23 +23,23 @@
 // <ISO_DTM>|STAT|<UptimeSeconds>|<BytesFreeMem>|<DehumEnabled>|<TelescopeOutState>|<DehumOutState>|<Aux1OutState>|<AcInState>|<BatteryCurrentStateSeconds>|<DehumCurrentStateSeconds>
 // <ISO_DTM>|PWR|<Voltage>|<Battery>|<Load>|<Solar>|<AC>
 // <ISO_DTM>|ENV|<CurrentTemperatureC>|<CurrentHumidityPercent>
-// VERSION|<FirmwareVersion>
-// CONFIG|AverageReadingCount|<value>
-// CONFIG|UpdateFrequency|<value>
-// CONFIG|WriteInterval|<value>
-// CONFIG|VoltageCalibration|<value>
-// CONFIG|R1Actual|<value>
-// CONFIG|R2Actual|<value>
-// CONFIG|AmpDigitalOffset1|<value>
-// CONFIG|AmpDigitalOffset2|<value>
-// CONFIG|AmpDigitalOffset3|<value>
-// CONFIG|TemperatureCalibration|<value>
-// CONFIG|HumidityCalibration|<value>
-// CONFIG|TargetHumidity|<value>
-// CONFIG|HumidityHysterisis|<value>
-// CONFIG|AcBackupPoint|<value>
-// OK
-// FAIL
+// <ISO_DTM>|VERSION|<FirmwareVersion>
+// <ISO_DTM>|CONFIG|AverageReadingCount|<value>
+// <ISO_DTM>|CONFIG|UpdateFrequency|<value>
+// <ISO_DTM>|CONFIG|WriteInterval|<value>
+// <ISO_DTM>|CONFIG|VoltageCalibration|<value>
+// <ISO_DTM>|CONFIG|R1Actual|<value>
+// <ISO_DTM>|CONFIG|R2Actual|<value>
+// <ISO_DTM>|CONFIG|AmpDigitalOffset1|<value>
+// <ISO_DTM>|CONFIG|AmpDigitalOffset2|<value>
+// <ISO_DTM>|CONFIG|AmpDigitalOffset3|<value>
+// <ISO_DTM>|CONFIG|TemperatureCalibration|<value>
+// <ISO_DTM>|CONFIG|HumidityCalibration|<value>
+// <ISO_DTM>|CONFIG|TargetHumidity|<value>
+// <ISO_DTM>|CONFIG|HumidityHysterisis|<value>
+// <ISO_DTM>|CONFIG|AcBackupPoint|<value>
+// <ISO_DTM>|<cmd>|OK
+// <ISO_DTM>|<cmd>|FAIL
 
 // Input commands:
 // VERSION - Get the current firmware version
@@ -116,6 +117,7 @@
 #include "src/PrintHelpers.h"
 #include "src/Config.h"
 #include "src/State.h"
+#include "src/Strings.h"
 
 #include "src/lib/DHT/SimpleDHT.h"
 #include "src/lib/RTC/RTClib.h"
@@ -123,6 +125,8 @@
 #include <EEPROM.h>
 #include <SPI.h>
 #include <SD.h>
+
+#include <avr/pgmspace.h>
 
 //========================================================================
 #pragma endregion
@@ -138,7 +142,7 @@
 #define BATTERY_CHECK_DELAY 5000
 #define BATTERY_CHANGE_MIN_SECOND 30
 
-#define OVERWRITE_EEPROM
+// #define OVERWRITE_EEPROM
 
 //========================================================================
 #pragma endregion
@@ -147,7 +151,7 @@
 #pragma region Constants
 //========================================================================
 
-const String VERSION = "2.0";
+const char VERSION[] = "2.0";
 
 const uint8_t mVperAmp = 100; // use 100 for 20A Module and 66 for 30A Module
 
@@ -218,15 +222,14 @@ int dehumButtonLastState = LOW;
  */
 int telescopeButtonLastState = LOW;
 
-/**
- * @brief String object used to hold input read from serial port
- */
-String inputString = "";
+char serialInput[50];
 
 /**
  * @brief If true, the string has finished being read from the serial port
  */
 bool stringComplete = false;
+
+// 2021-11-21T17:41:33|PWR|12.92|-0.05|0.04|0.03|-0.04
 
 /**
  * @brief Object used to hold current configuration
@@ -298,8 +301,8 @@ void setup()
     initConfig();
     allocateArrays();
     setupPins();
-    setupSdCard();
     setupRtc();
+    setupSdCard();
 
     updateDtm();
 }
@@ -309,11 +312,9 @@ void setup()
  */
 void setupSerial()
 {
-    inputString.reserve(30);
-
     Serial.begin(115200);
 
-    inputString = "";
+    memset(serialInput, 0, sizeof(serialInput));
 }
 
 /**
@@ -323,8 +324,7 @@ void setupSdCard()
 {
     if (!SD.begin(PIN_SD_SELECT)) 
     {
-        Serial.println(F("SD failed!"));
-
+        WriteLine_P(Serial, STR_SD_FAILED);
         abort();
     }
 }
@@ -337,7 +337,7 @@ void abort()
     while (1)
     {
         digitalWrite(PIN_DEHUMIDIFIER_ENABLED_LED, !digitalRead(PIN_DEHUMIDIFIER_ENABLED_LED));
-        delay(200);
+        delay(100);
     }
 }
 
@@ -348,14 +348,14 @@ void setupRtc()
 {
     if (!rtc.begin())
     {
-        Serial.println(F("RTC FAIL"));
+        WriteLine_P(Serial, STR_RTC_FAIL);
         abort();
     }
     
     // this is only called if the time has never been set or after the battery has died
     if (!rtc.initialized() || rtc.lostPower()) 
     {
-        Serial.println(F("RTC Init"));
+        WriteLine_P(getPrintTarget(), STR_RTC_INIT);
 
         rtc.adjust(DateTime(2000, 1, 1, 0, 0, 0));
     }
@@ -434,6 +434,8 @@ void loop()
     readTelescopeButton();
 }
 
+uint8_t currentSerialPos = 0;
+
 /**
  * @brief occurs whenever a new data comes in the hardware serial RX.  
  * 
@@ -447,17 +449,25 @@ void serialEvent()
         // get the new byte:
         char inChar = (char)Serial.read();
 
+        // for some reason, on first boot after an upload.. the first character that
+        // comes in is invalid and if you attempt to print it back to serial, it jacks
+        // up the serial connection somehow.. easy enough to filter out since it seems 
+        // to send a negative char value
+        if ((int)inChar < 0)
+            continue;
+
         // add it to the inputString:
         if (inChar != '\n' && inChar != '\r')
-            inputString += inChar;
+            serialInput[currentSerialPos++] = inChar;
 
         // if the incoming character is a newline, set a flag
         // so the main loop can do something about it:
         if (inChar == '\n')
         {
             stringComplete = true;
-            inputString += '\0';
+            serialInput[currentSerialPos++] = '\0';
         }
+        // TODO: test if current position is higher than buffer size.
     }
 }
 
@@ -469,10 +479,11 @@ void processSerialInput()
     // print the string when a newline arrives:
     if (stringComplete)
     {
-        handleSerialCommand(&inputString);
+        handleSerialCommand(serialInput);
 
         // clear the string:
-        inputString = "";
+        currentSerialPos = 0;
+        memset(serialInput, 0, sizeof(serialInput));
         stringComplete = false;
     }
 }
@@ -486,7 +497,7 @@ void updateClock()
     if (state.LastTick == 0 || (millis() - state.LastTick) >= 1000)
     {
         updateDtm();
-        printSystemStatus(state, config);
+        printSystemStatus(getPrintTarget(), state, config);
 
         state.LastTick = millis();
     }
@@ -522,7 +533,7 @@ void readPowerSensors()
             // only write if we have enough readings to average
             if (readings == config.AverageReadingCount)
             {
-                printPowerStatus(state, config);
+                printPowerStatus(getPrintTarget(), state, config);
 
                 state.LastWriteTime = millis();
             }
@@ -538,7 +549,7 @@ void readEnvSensors()
     if (state.LastDhtReadTime == 0 || (millis() - state.LastDhtReadTime) >= ENV_WRITE_DELAY)
     {
         readDht(PIN_DHT, &state.Temperature, &state.Humidity);
-        printEnvironmentStatus(state, config);
+        printEnvironmentStatus(getPrintTarget(), state, config);
 
         state.LastDhtReadTime = millis();
     }
@@ -651,37 +662,39 @@ void setHumidityControl(bool newState)
 /**
  * @brief Handle commands being received via serial connection
  */
-void handleSerialCommand(String *commandLine)
+void handleSerialCommand(char *command)
 {
-    boolean fail = false;
+    bool fail = false;
 
-    if (commandLine->startsWith(F("PWR")))
+    uint8_t offset = 0;
+
+    if (StartsWith_P(command, STR_PWR, offset))
     {
-        *commandLine = commandLine->substring(4);
+        offset += strlen_P(STR_PWR) + 1;
 
         byte cmd = 250;
 
-        if (commandLine->startsWith(F("ON")))
+        if (StartsWith_P(command, STR_ON, offset))
         {
-            *commandLine = commandLine->substring(3);
+            offset += strlen_P(STR_ON) + 1;
             cmd = 1;
         }
 
-        if (commandLine->startsWith(F("OFF")))
+        if (StartsWith_P(command, STR_OFF, offset))
         {
-            *commandLine = commandLine->substring(4);
+            offset += strlen_P(STR_OFF) + 1;
             cmd = 0;
         }
 
         if (cmd <= 1)
         {
-            if (commandLine->startsWith(F("TELESCOPE")))
+            if (StartsWith_P(command, STR_TELESCOPE, offset))
                 setRelayState(&state.TelescopeOutState, PIN_TELESCOPE_OUTPUT_RELAY, (cmd == 1));
-            else if (commandLine->startsWith(F("AUX1")))
+            else if (StartsWith_P(command, STR_AUX1, offset))
                 setRelayState(&state.Aux1OutState, PIN_AUX_OUTPUT_RELAY, (cmd == 1));
-            else if (commandLine->startsWith(F("DEHUM")))
+            else if (StartsWith_P(command, STR_DEHUM, offset))
                 setRelayState(&state.DehumOutState, PIN_DEHUMIDIFIER_OUTPUT_RELAY, (cmd == 1));
-            else if (commandLine->startsWith(F("AC")))
+            else if (StartsWith_P(command, STR_AC, offset))
                 setRelayState(&state.AcInState, PIN_AC_INPUT_RELAY, (cmd == 1));
             else
                 fail = true;
@@ -689,90 +702,118 @@ void handleSerialCommand(String *commandLine)
         else
             fail = true;
     }
-    else if (commandLine->startsWith(F("SET")))
+    else if (StartsWith_P(command, STR_SET, offset))
     {
-        *commandLine = commandLine->substring(4);
+        offset += strlen_P(STR_SET) + 1;
 
-        if (commandLine->startsWith(F("TIME")))
+        if (StartsWith_P(command, STR_TIME, offset))
         {
-            *commandLine = commandLine->substring(5);
+            offset += strlen_P(STR_TIME) + 1;
 
-            // 2020-06-25T15:29:37
-            char dtmStr[20];
-            memset(dtmStr, 0, 20);
-            commandLine->toCharArray(dtmStr, 20, 0);         
-
-            rtc.adjust(DateTime(dtmStr));
+            rtc.adjust(DateTime(command + offset));
         }
 
-        // 2021-11-21T17:41:33|PWR|12.92|-0.05|0.04|0.03|-0.04
-
-        else if (parseConfigValShort(commandLine, &config.AverageReadingCount, F("AverageReadingCount"), 20)) 
+        else if (parseConfigValByte_P(command, &config.AverageReadingCount, STR_AVERAGE_READING_COUNT, offset))
             reallocateArrays();
-        else if (parseConfigValShort(commandLine, &config.UpdateFrequency, F("UpdateFrequency"), 16)) { }
-        else if (parseConfigValShort(commandLine, &config.WriteInterval, F("WriteInterval"), 14)) { }
-        else if (parseConfigValFloat(commandLine, &config.VoltageCalibration, F("VoltageCalibration"), 19)) { }
-        else if (parseConfigValInt(commandLine, &config.R1Actual, F("R1Actual"), 9)) { }
-        else if (parseConfigValInt(commandLine, &config.R2Actual, F("R2Actual"), 9)) { }
-        else if (parseConfigValShort(commandLine, &config.AmpDigitalOffset1, F("AmpDigitalOffset1"), 17)) { }
-        else if (parseConfigValShort(commandLine, &config.AmpDigitalOffset2, F("AmpDigitalOffset2"), 17)) { }
-        else if (parseConfigValShort(commandLine, &config.AmpDigitalOffset3, F("AmpDigitalOffset3"), 17)) { }
-        else if (parseConfigValFloat(commandLine, &config.TemperatureCalibration, F("TemperatureCalibration"), 23)) { }
-        else if (parseConfigValFloat(commandLine, &config.HumidityCalibration, F("HumidityCalibration"), 20)) { }
-        else if (parseConfigValShort(commandLine, &config.TargetHumidity, F("TargetHumidity"), 15)) { }
-        else if (parseConfigValShort(commandLine, &config.HumidityHysterisis, F("HumidityHysterisis"), 19)) { }
-        else if (parseConfigValFloat(commandLine, &config.AcBackupPoint, F("AcBackupPoint"), 14)) { }
+        else if (parseConfigValByte_P(command, &config.UpdateFrequency, STR_UPDATE_FREQUENCY, offset)) { }
+        else if (parseConfigValByte_P(command, &config.WriteInterval, STR_WRITE_INTERVAL, offset)) { }
+        else if (parseConfigValFloat_P(command, &config.VoltageCalibration, STR_VOLTAGE_CALIBRATION, offset)) { }
+        else if (parseConfigValInt_P(command, &config.R1Actual, STR_R1_ACTUAL, offset)) { }
+        else if (parseConfigValInt_P(command, &config.R2Actual, STR_R2_ACTUAL, offset)) { }
+        else if (parseConfigValShort_P(command, &config.AmpDigitalOffset1, STR_AMP_DIGITAL_OFFSET_1, offset)) { }
+        else if (parseConfigValShort_P(command, &config.AmpDigitalOffset2, STR_AMP_DIGITAL_OFFSET_2, offset)) { }
+        else if (parseConfigValShort_P(command, &config.AmpDigitalOffset3, STR_AMP_DIGITAL_OFFSET_3, offset)) { }
+        else if (parseConfigValFloat_P(command, &config.TemperatureCalibration, STR_TEMPERATURE_CALIBRATION, offset)) { }
+        else if (parseConfigValFloat_P(command, &config.HumidityCalibration, STR_HUMIDITY_CALIBRATION, offset)) { }
+        else if (parseConfigValByte_P(command, &config.TargetHumidity, STR_TARGET_HUMIDITY, offset)) { }
+        else if (parseConfigValByte_P(command, &config.HumidityHysterisis, STR_HUMIDITY_HYSTERISIS, offset)) { }
+        else if (parseConfigValFloat_P(command, &config.AcBackupPoint, STR_AC_BACKUP_POINT, offset)) { }
+        else
+            fail = true;
     }
 
-    else if (commandLine->startsWith(F("CONFIG")))
-        printConfig(config);
+    else if (StartsWith_P(command, STR_CONFIG))
+        printConfig(Serial, config, state);
 
-    else if (commandLine->startsWith(F("VERSION")))
-        printPipePair(F("VERSION"), VERSION, true);
-
-    else if (commandLine->startsWith(F("SAVE")))
+    else if (StartsWith_P(command, STR_VERSION))
     {
-        writeConfig();
-        Serial.println(F("OK"));
+        PrintTimestamp(Serial, state.CurrentDtm);
+        printPipePair_P(Serial, STR_VERSION, VERSION, true);
     }
 
-    else if (commandLine->startsWith(F("CLEAR")))
+    else if (StartsWith_P(command, STR_SAVE))
+        writeConfig();
+
+    else if (StartsWith_P(command, STR_CLEAR))
     {
         writeDefaultConfig();
         readConfig();
-        Serial.println(F("OK"));
     }
 
-    else if (commandLine->startsWith(F("PAUSE")))
-    {
+    else if (StartsWith_P(command, STR_PAUSE))
         state.EnableReadings = false;
-        Serial.println(F("OK"));
-    }
 
-    else if (commandLine->startsWith(F("RESUME")))
-    {
+    else if (StartsWith_P(command, STR_RESUME))
         state.EnableReadings = true;
-        Serial.println(F("OK"));
-    }
+
     else
         fail = true;
 
+    
+    PrintTimestamp(Serial, state.CurrentDtm);
+    printWithPipe_P(Serial, STR_CMD);
+    printWithPipe(Serial, command);
+
     if (fail)
-        Serial.println(F("FAIL"));
+        WriteLine_P(Serial, STR_FAIL);
+    else
+        WriteLine_P(Serial, STR_OK);
 }
 
 /**
  * @brief Parse an incoming serial config floating point value
  */
-boolean parseConfigValFloat(String *commandLine, float *destination, const __FlashStringHelper *itemName, uint8_t length)
+boolean parseConfigValFloat_P(const char *command, float *destination, const char *itemName, uint8_t offset)
 {
-    if (!commandLine->startsWith(itemName))
+    if (!StartsWith_P(command, itemName, offset))
         return false;
 
-    *commandLine = commandLine->substring(length);
-    *destination = commandLine->toFloat();
+    offset += strlen_P(itemName) + 1;
+    *destination = atof(command + offset);
 
-    printConfigEntry(itemName, *destination);
+    printConfigEntry_P(Serial, state, itemName, *destination);
+
+    return true;
+}
+
+/**
+ * @brief Parse an incoming serial config byte value
+ */
+boolean parseConfigValByte_P(const char *command, uint8_t *destination, const char *itemName, uint8_t offset)
+{
+    if (!StartsWith_P(command, itemName, offset))
+        return false;
+
+    offset += strlen_P(itemName) + 1;
+    *destination = atoi(command + offset);
+
+    printConfigEntry_P(Serial, state, itemName, (uint32_t)*destination);
+
+    return true;
+}
+
+/**
+ * @brief Parse an incoming serial config short value
+ */
+boolean parseConfigValShort_P(const char *command, int8_t *destination, const char *itemName, uint8_t offset)
+{
+    if (!StartsWith_P(command, itemName, offset))
+        return false;
+
+    offset += strlen_P(itemName) + 1;
+    *destination = (int8_t)atoi(command + offset);
+
+    printConfigEntry_P(Serial, state, itemName, (uint32_t)*destination);
 
     return true;
 }
@@ -780,31 +821,15 @@ boolean parseConfigValFloat(String *commandLine, float *destination, const __Fla
 /**
  * @brief Parse an incoming serial config floating point value
  */
-boolean parseConfigValShort(String *commandLine, uint8_t *destination, const __FlashStringHelper *itemName, uint8_t length)
+boolean parseConfigValInt_P(const char *command, int16_t *destination, const char *itemName, uint8_t offset)
 {
-    if (!commandLine->startsWith(itemName))
+    if (!StartsWith_P(command, itemName, offset))
         return false;
 
-    *commandLine = commandLine->substring(length);
-    *destination = commandLine->toInt();
+    offset += strlen_P(itemName) + 1;
+    *destination = atoi(command + offset);
 
-    printConfigEntry(itemName, *destination);
-
-    return true;
-}
-
-/**
- * @brief Parse an incoming serial config floating point value
- */
-boolean parseConfigValInt(String *commandLine, uint16_t *destination, const __FlashStringHelper *itemName, uint8_t length)
-{
-    if (!commandLine->startsWith(itemName))
-        return false;
-
-    *commandLine = commandLine->substring(length);
-    *destination = commandLine->toInt();
-
-    printConfigEntry(itemName, (uint32_t)*destination);
+    printConfigEntry_P(Serial, state, itemName, (uint32_t)*destination);
 
     return true;
 }
@@ -839,7 +864,7 @@ void writeConfig()
  */
 void writeDefaultConfig()
 {
-    Serial.println(F("WRITE default config"));
+    WriteLine_P(Serial, STR_WRITE_DEFAULT_CONFIG);
     EEPROM.put(0, getDefaultConfig());
 }
 
@@ -921,6 +946,11 @@ void updateDtm()
     state.UptimeSeconds = millis() / 1000;
     state.DehumCurrentStateSeconds += 1;
     state.BatteryCurrentStateSeconds += 1;
+}
+
+Print &getPrintTarget()
+{
+    return Serial;
 }
 
 //========================================================================
