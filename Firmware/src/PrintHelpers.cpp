@@ -16,6 +16,12 @@ void printWithPipe_P(Print &target, const char *text)
     target.print(F("|"));
 }
 
+void printWithPipe(Print &target, const char *text)
+{
+    target.print(text);
+    target.print(F("|"));
+}
+
 void printWithPipe(Print &target, const float f)
 {
     target.print(f);

@@ -16,6 +16,7 @@ void printWithPipe(Print &target, const float f);
 void printWithPipe(Print &target, const int i);
 void printWithPipe(Print &target, const boolean b);
 void printWithPipe(Print &target, const uint32_t ul);
+void printWithPipe(Print &target, const char *text);
 
 void printPipePair_P(Print &target, const char *name, const char *value, boolean newline = false);
 
