@@ -72,6 +72,8 @@ struct State
 
     uint16_t BatteryCurrentStateSeconds;
 
+    uint16_t LastPingSeconds;
+
     boolean DehumEnabled;
 
     boolean DehumOutState;

@@ -73,6 +73,7 @@
 // CLEAR - Reset the EEPROM to the default values 
 // PAUSE - Pause sensor readings
 // RESUME - Resume sensor readings
+// PING - Notify the controller that the PC is still alive
 
 // Config Option conversion:
 //   AverageReadingCount[19]      => AvgRdCt[7] .. 24 bytes saved
@@ -141,6 +142,8 @@
 
 #define BATTERY_CHECK_DELAY 5000
 #define BATTERY_CHANGE_MIN_SECOND 30
+
+#define MAX_PING_TIME 15
 
 #define OVERWRITE_EEPROM
 
@@ -253,11 +256,12 @@ State state = {
     0.0,            // Humidity
     0,              // DehumCurrentStateSeconds
     0,              // BatteryCurrentStateSeconds
+    0,              // LastPingSeconds
     true,           // DehumEnabled
     false,          // DehumOutState
     false,          // TelescopeOutState
     false,          // Aux1OutState
-    false,          // AcInState
+    false           // AcInState
 };
 
 /**
@@ -399,11 +403,7 @@ void initConfig()
 
     // check for magic number
     if (config.Defined != -1337)
-    {
         writeDefaultConfig();
-
-        readConfig();
-    }
 }
 
 //========================================================================
@@ -432,6 +432,7 @@ void loop()
     checkBattery();
     readDehumButton();
     readTelescopeButton();
+    checkPing();
 }
 
 uint8_t currentSerialPos = 0;
@@ -652,6 +653,14 @@ void setHumidityControl(bool newState)
     digitalWrite(PIN_DEHUMIDIFIER_ENABLED_LED, state.DehumEnabled);
 }
 
+bool writeToSd = false;
+
+void checkPing()
+{
+    if (state.LastPingSeconds > MAX_PING_TIME && !writeToSd)
+        writeToSd = true;
+}
+
 //========================================================================
 #pragma endregion
 
@@ -662,7 +671,7 @@ void setHumidityControl(bool newState)
 /**
  * @brief Handle commands being received via serial connection
  */
-void handleSerialCommand(char *command)
+void handleSerialCommand(const char *command)
 {
     bool fail = false;
 
@@ -745,16 +754,16 @@ void handleSerialCommand(char *command)
         writeConfig();
 
     else if (startsWith_p(command, STR_CLEAR))
-    {
         writeDefaultConfig();
-        readConfig();
-    }
 
     else if (startsWith_p(command, STR_PAUSE))
         state.EnableReadings = false;
 
     else if (startsWith_p(command, STR_RESUME))
         state.EnableReadings = true;
+
+    else if (startsWith_p(command, STR_PING))
+        state.LastPingSeconds = 0;
 
     else
         fail = true;
@@ -866,6 +875,8 @@ void writeDefaultConfig()
 {
     writeLine_p(Serial, STR_WRITE_DEFAULT_CONFIG);
     EEPROM.put(0, getDefaultConfig());
+
+    readConfig();
 }
 
 //========================================================================
@@ -946,11 +957,15 @@ void updateDtm()
     state.UptimeSeconds = millis() / 1000;
     state.DehumCurrentStateSeconds += 1;
     state.BatteryCurrentStateSeconds += 1;
+    state.LastPingSeconds += 1;
 }
 
 Print &getPrintTarget()
 {
-    return Serial;
+    // if (writeToSd)
+    //     return 0;
+    // else
+        return Serial;
 }
 
 //========================================================================

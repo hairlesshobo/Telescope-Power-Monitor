@@ -41,6 +41,7 @@ const char str_RtcInit[] PROGMEM = "RTC Init";
 const char str_Cmd[] PROGMEM = "CMD";
 const char str_Stat[] PROGMEM = "STAT";
 const char str_Env[] PROGMEM = "ENV";
+const char str_Ping[] PROGMEM = "PING";
 
 
 const char *const string_table[] PROGMEM = {
@@ -81,7 +82,8 @@ const char *const string_table[] PROGMEM = {
     str_RtcInit,
     str_Cmd,
     str_Stat,
-    str_Env
+    str_Env,
+    str_Ping
 };
 
 #define STR_AVERAGE_READING_COUNT string_table[0]
@@ -122,5 +124,6 @@ const char *const string_table[] PROGMEM = {
 #define STR_CMD string_table[35]
 #define STR_STAT string_table[36]
 #define STR_ENV string_table[37]
+#define STR_PING string_table[38]
 
 #endif // _STRINGS_H

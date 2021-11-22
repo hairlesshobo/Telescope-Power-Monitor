@@ -78,7 +78,8 @@ void printSystemStatus(Print &target, State &state, ConfigObject &config)
     printWithPipe(target, state.Aux1OutState);
     printWithPipe(target, state.AcInState);
     printWithPipe(target, (uint32_t)state.BatteryCurrentStateSeconds);
-    target.println(state.DehumCurrentStateSeconds);
+    printWithPipe(target, (uint32_t)state.DehumCurrentStateSeconds);
+    target.println(state.LastPingSeconds);
 }
 
 void printPowerStatus(Print &target, State &state, ConfigObject &config)
