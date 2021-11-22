@@ -142,7 +142,7 @@
 #define BATTERY_CHECK_DELAY 5000
 #define BATTERY_CHANGE_MIN_SECOND 30
 
-// #define OVERWRITE_EEPROM
+#define OVERWRITE_EEPROM
 
 //========================================================================
 #pragma endregion
@@ -324,7 +324,7 @@ void setupSdCard()
 {
     if (!SD.begin(PIN_SD_SELECT)) 
     {
-        WriteLine_P(Serial, STR_SD_FAILED);
+        writeLine_p(Serial, STR_SD_FAILED);
         abort();
     }
 }
@@ -348,14 +348,14 @@ void setupRtc()
 {
     if (!rtc.begin())
     {
-        WriteLine_P(Serial, STR_RTC_FAIL);
+        writeLine_p(Serial, STR_RTC_FAIL);
         abort();
     }
     
     // this is only called if the time has never been set or after the battery has died
     if (!rtc.initialized() || rtc.lostPower()) 
     {
-        WriteLine_P(getPrintTarget(), STR_RTC_INIT);
+        writeLine_p(getPrintTarget(), STR_RTC_INIT);
 
         rtc.adjust(DateTime(2000, 1, 1, 0, 0, 0));
     }
@@ -668,19 +668,19 @@ void handleSerialCommand(char *command)
 
     uint8_t offset = 0;
 
-    if (StartsWith_P(command, STR_PWR, offset))
+    if (startsWith_p(command, STR_PWR, offset))
     {
         offset += strlen_P(STR_PWR) + 1;
 
         byte cmd = 250;
 
-        if (StartsWith_P(command, STR_ON, offset))
+        if (startsWith_p(command, STR_ON, offset))
         {
             offset += strlen_P(STR_ON) + 1;
             cmd = 1;
         }
 
-        if (StartsWith_P(command, STR_OFF, offset))
+        if (startsWith_p(command, STR_OFF, offset))
         {
             offset += strlen_P(STR_OFF) + 1;
             cmd = 0;
@@ -688,13 +688,13 @@ void handleSerialCommand(char *command)
 
         if (cmd <= 1)
         {
-            if (StartsWith_P(command, STR_TELESCOPE, offset))
+            if (startsWith_p(command, STR_TELESCOPE, offset))
                 setRelayState(&state.TelescopeOutState, PIN_TELESCOPE_OUTPUT_RELAY, (cmd == 1));
-            else if (StartsWith_P(command, STR_AUX1, offset))
+            else if (startsWith_p(command, STR_AUX1, offset))
                 setRelayState(&state.Aux1OutState, PIN_AUX_OUTPUT_RELAY, (cmd == 1));
-            else if (StartsWith_P(command, STR_DEHUM, offset))
+            else if (startsWith_p(command, STR_DEHUM, offset))
                 setRelayState(&state.DehumOutState, PIN_DEHUMIDIFIER_OUTPUT_RELAY, (cmd == 1));
-            else if (StartsWith_P(command, STR_AC, offset))
+            else if (startsWith_p(command, STR_AC, offset))
                 setRelayState(&state.AcInState, PIN_AC_INPUT_RELAY, (cmd == 1));
             else
                 fail = true;
@@ -702,86 +702,86 @@ void handleSerialCommand(char *command)
         else
             fail = true;
     }
-    else if (StartsWith_P(command, STR_SET, offset))
+    else if (startsWith_p(command, STR_SET, offset))
     {
         offset += strlen_P(STR_SET) + 1;
 
-        if (StartsWith_P(command, STR_TIME, offset))
+        if (startsWith_p(command, STR_TIME, offset))
         {
             offset += strlen_P(STR_TIME) + 1;
 
             rtc.adjust(DateTime(command + offset));
         }
 
-        else if (parseConfigValByte_P(command, &config.AverageReadingCount, STR_AVERAGE_READING_COUNT, offset))
+        else if (parseConfigValByte_p(command, &config.AverageReadingCount, STR_AVERAGE_READING_COUNT, offset))
             reallocateArrays();
-        else if (parseConfigValByte_P(command, &config.UpdateFrequency, STR_UPDATE_FREQUENCY, offset)) { }
-        else if (parseConfigValByte_P(command, &config.WriteInterval, STR_WRITE_INTERVAL, offset)) { }
-        else if (parseConfigValFloat_P(command, &config.VoltageCalibration, STR_VOLTAGE_CALIBRATION, offset)) { }
-        else if (parseConfigValInt_P(command, &config.R1Actual, STR_R1_ACTUAL, offset)) { }
-        else if (parseConfigValInt_P(command, &config.R2Actual, STR_R2_ACTUAL, offset)) { }
-        else if (parseConfigValShort_P(command, &config.AmpDigitalOffset1, STR_AMP_DIGITAL_OFFSET_1, offset)) { }
-        else if (parseConfigValShort_P(command, &config.AmpDigitalOffset2, STR_AMP_DIGITAL_OFFSET_2, offset)) { }
-        else if (parseConfigValShort_P(command, &config.AmpDigitalOffset3, STR_AMP_DIGITAL_OFFSET_3, offset)) { }
-        else if (parseConfigValFloat_P(command, &config.TemperatureCalibration, STR_TEMPERATURE_CALIBRATION, offset)) { }
-        else if (parseConfigValFloat_P(command, &config.HumidityCalibration, STR_HUMIDITY_CALIBRATION, offset)) { }
-        else if (parseConfigValByte_P(command, &config.TargetHumidity, STR_TARGET_HUMIDITY, offset)) { }
-        else if (parseConfigValByte_P(command, &config.HumidityHysterisis, STR_HUMIDITY_HYSTERISIS, offset)) { }
-        else if (parseConfigValFloat_P(command, &config.AcBackupPoint, STR_AC_BACKUP_POINT, offset)) { }
+        else if (parseConfigValByte_p(command, &config.UpdateFrequency, STR_UPDATE_FREQUENCY, offset)) { }
+        else if (parseConfigValByte_p(command, &config.WriteInterval, STR_WRITE_INTERVAL, offset)) { }
+        else if (parseConfigValFloat_p(command, &config.VoltageCalibration, STR_VOLTAGE_CALIBRATION, offset)) { }
+        else if (parseConfigValInt_p(command, &config.R1Actual, STR_R1_ACTUAL, offset)) { }
+        else if (parseConfigValInt_p(command, &config.R2Actual, STR_R2_ACTUAL, offset)) { }
+        else if (parseConfigValShort_p(command, &config.AmpDigitalOffset1, STR_AMP_DIGITAL_OFFSET_1, offset)) { }
+        else if (parseConfigValShort_p(command, &config.AmpDigitalOffset2, STR_AMP_DIGITAL_OFFSET_2, offset)) { }
+        else if (parseConfigValShort_p(command, &config.AmpDigitalOffset3, STR_AMP_DIGITAL_OFFSET_3, offset)) { }
+        else if (parseConfigValFloat_p(command, &config.TemperatureCalibration, STR_TEMPERATURE_CALIBRATION, offset)) { }
+        else if (parseConfigValFloat_p(command, &config.HumidityCalibration, STR_HUMIDITY_CALIBRATION, offset)) { }
+        else if (parseConfigValByte_p(command, &config.TargetHumidity, STR_TARGET_HUMIDITY, offset)) { }
+        else if (parseConfigValByte_p(command, &config.HumidityHysterisis, STR_HUMIDITY_HYSTERISIS, offset)) { }
+        else if (parseConfigValShort_p(command, &config.AcBackupPoint, STR_AC_BACKUP_POINT, offset)) { }
         else
             fail = true;
     }
 
-    else if (StartsWith_P(command, STR_CONFIG))
+    else if (startsWith_p(command, STR_CONFIG))
         printConfig(Serial, config, state);
 
-    else if (StartsWith_P(command, STR_VERSION))
+    else if (startsWith_p(command, STR_VERSION))
     {
-        PrintTimestamp(Serial, state.CurrentDtm);
-        printPipePair_P(Serial, STR_VERSION, VERSION, true);
+        printTimestamp(Serial, state.CurrentDtm);
+        printPipePair_p(Serial, STR_VERSION, VERSION, true);
     }
 
-    else if (StartsWith_P(command, STR_SAVE))
+    else if (startsWith_p(command, STR_SAVE))
         writeConfig();
 
-    else if (StartsWith_P(command, STR_CLEAR))
+    else if (startsWith_p(command, STR_CLEAR))
     {
         writeDefaultConfig();
         readConfig();
     }
 
-    else if (StartsWith_P(command, STR_PAUSE))
+    else if (startsWith_p(command, STR_PAUSE))
         state.EnableReadings = false;
 
-    else if (StartsWith_P(command, STR_RESUME))
+    else if (startsWith_p(command, STR_RESUME))
         state.EnableReadings = true;
 
     else
         fail = true;
 
     
-    PrintTimestamp(Serial, state.CurrentDtm);
-    printWithPipe_P(Serial, STR_CMD);
+    printTimestamp(Serial, state.CurrentDtm);
+    printWithPipe_p(Serial, STR_CMD);
     printWithPipe(Serial, command);
 
     if (fail)
-        WriteLine_P(Serial, STR_FAIL);
+        writeLine_p(Serial, STR_FAIL);
     else
-        WriteLine_P(Serial, STR_OK);
+        writeLine_p(Serial, STR_OK);
 }
 
 /**
  * @brief Parse an incoming serial config floating point value
  */
-boolean parseConfigValFloat_P(const char *command, float *destination, const char *itemName, uint8_t offset)
+boolean parseConfigValFloat_p(const char *command, float *destination, const char *itemName, uint8_t offset)
 {
-    if (!StartsWith_P(command, itemName, offset))
+    if (!startsWith_p(command, itemName, offset))
         return false;
 
     offset += strlen_P(itemName) + 1;
     *destination = atof(command + offset);
 
-    printConfigEntry_P(Serial, state, itemName, *destination);
+    printConfigEntry_p(Serial, state, itemName, *destination);
 
     return true;
 }
@@ -789,15 +789,15 @@ boolean parseConfigValFloat_P(const char *command, float *destination, const cha
 /**
  * @brief Parse an incoming serial config byte value
  */
-boolean parseConfigValByte_P(const char *command, uint8_t *destination, const char *itemName, uint8_t offset)
+boolean parseConfigValByte_p(const char *command, uint8_t *destination, const char *itemName, uint8_t offset)
 {
-    if (!StartsWith_P(command, itemName, offset))
+    if (!startsWith_p(command, itemName, offset))
         return false;
 
     offset += strlen_P(itemName) + 1;
     *destination = atoi(command + offset);
 
-    printConfigEntry_P(Serial, state, itemName, (uint32_t)*destination);
+    printConfigEntry_p(Serial, state, itemName, (uint32_t)*destination);
 
     return true;
 }
@@ -805,15 +805,15 @@ boolean parseConfigValByte_P(const char *command, uint8_t *destination, const ch
 /**
  * @brief Parse an incoming serial config short value
  */
-boolean parseConfigValShort_P(const char *command, int8_t *destination, const char *itemName, uint8_t offset)
+boolean parseConfigValShort_p(const char *command, int8_t *destination, const char *itemName, uint8_t offset)
 {
-    if (!StartsWith_P(command, itemName, offset))
+    if (!startsWith_p(command, itemName, offset))
         return false;
 
     offset += strlen_P(itemName) + 1;
     *destination = (int8_t)atoi(command + offset);
 
-    printConfigEntry_P(Serial, state, itemName, (uint32_t)*destination);
+    printConfigEntry_p(Serial, state, itemName, (uint32_t)*destination);
 
     return true;
 }
@@ -821,15 +821,15 @@ boolean parseConfigValShort_P(const char *command, int8_t *destination, const ch
 /**
  * @brief Parse an incoming serial config floating point value
  */
-boolean parseConfigValInt_P(const char *command, int16_t *destination, const char *itemName, uint8_t offset)
+boolean parseConfigValInt_p(const char *command, int16_t *destination, const char *itemName, uint8_t offset)
 {
-    if (!StartsWith_P(command, itemName, offset))
+    if (!startsWith_p(command, itemName, offset))
         return false;
 
     offset += strlen_P(itemName) + 1;
     *destination = atoi(command + offset);
 
-    printConfigEntry_P(Serial, state, itemName, (uint32_t)*destination);
+    printConfigEntry_p(Serial, state, itemName, (uint32_t)*destination);
 
     return true;
 }
@@ -864,7 +864,7 @@ void writeConfig()
  */
 void writeDefaultConfig()
 {
-    WriteLine_P(Serial, STR_WRITE_DEFAULT_CONFIG);
+    writeLine_p(Serial, STR_WRITE_DEFAULT_CONFIG);
     EEPROM.put(0, getDefaultConfig());
 }
 

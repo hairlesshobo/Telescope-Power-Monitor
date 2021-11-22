@@ -1,6 +1,6 @@
 #include "Helpers.h"
 
-void Write_P(Print &target, const char* str)
+void write_p(Print &target, const char* str)
 {
     char buf[strlen_P(str)+1];
     strcpy_P(buf, str);
@@ -8,7 +8,7 @@ void Write_P(Print &target, const char* str)
 	target.print(buf);
 }
 
-void WriteLine_P(Print &target, const char* str)
+void writeLine_p(Print &target, const char* str)
 {
     char buf[strlen_P(str)+1];
     strcpy_P(buf, str);
@@ -16,12 +16,12 @@ void WriteLine_P(Print &target, const char* str)
 	target.println(buf);
 }
 
-boolean StartsWith_P(const char *search, const char *str, uint8_t offset = 0)
+boolean startsWith_p(const char *search, const char *str, uint8_t offset = 0)
 {
 	return strncasecmp_P(search + offset, str, strlen_P(str)) == 0;
 }
 
-void GetTimestamp(DateTime *dt, char *dest)
+void getTimestamp(DateTime *dt, char *dest)
 {
 	sprintf(dest, "%u-%02d-%02dT%02d:%02d:%02d", dt->year(), dt->month(), dt->day(), dt->hour(), dt->minute(), dt->second());
 }

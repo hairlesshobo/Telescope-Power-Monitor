@@ -20,6 +20,6 @@ ConfigObject getDefaultConfig()
         0.0,   // HumidityCalibration
         60,    // TargetHumidity
         4,     // HumidityHysterisis
-        12.1   // AcBackupPoint
+        50     // AcBackupPoint
     };
 }
