@@ -476,6 +476,14 @@ void serialEvent()
         if ((int)inChar < 0)
             continue;
 
+        // if the input string is longer than the buffer, we truncate it and process 
+        // the command we do have
+        if (currentSerialPos >= (sizeof(serialInput)-1))
+        {
+            stringComplete = true;
+            break;
+        }
+
         // add it to the inputString:
         if (inChar != '\n' && inChar != '\r')
             serialInput[currentSerialPos++] = inChar;
@@ -487,7 +495,6 @@ void serialEvent()
             stringComplete = true;
             serialInput[currentSerialPos++] = '\0';
         }
-        // TODO: test if current position is higher than buffer size.
     }
 }
 
