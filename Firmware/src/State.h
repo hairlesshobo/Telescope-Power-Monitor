@@ -68,32 +68,84 @@ struct State
      */
     float Humidity;
 
+    /**
+     * @brief How many seconds has the dehumidifier been in the current state
+     */
     uint32_t DehumCurrentStateSeconds;
 
+    /**
+     * @brief How many seconds has the battery been in the current state
+     */
     uint32_t BatteryCurrentStateSeconds;
 
+    /**
+     * @brief How many seconds have elapsed since the last PING from the PC
+     */
     uint32_t LastPingSeconds;
 
+    /**
+     * @brief Flag indicating whether automatic humidity control is enabled
+     */
     boolean DehumEnabled;
 
+    /**
+     * @brief Flag indicating whether the Dehumidifier output is turned on
+     */
     boolean DehumOutState;
 
+    /**
+     * @brief Flag indicating whether the telescope output is turned on
+     */
     boolean TelescopeOutState;
 
+    /**
+     * @brief Flag indicating whether the AUX1 output is turned on
+     */
     boolean Aux1OutState;
 
+    /**
+     * @brief Flag indicating whether the AC power supply is connected
+     */
     boolean AcInState;
 
+    /**
+     * @brief Current system voltage
+     */
     float Volt;
 
+    /**
+     * @brief Current amperage coming from the battery. A positive value indicates 
+     * amperage flowing INTO the battery. A negative value indicates amperage flowing 
+     * OUT of the battery
+     */
     float BatteryAmp;
 
+    // TODO: prevent positive values?
+    /**
+     * @brief Current amperage being drawn by the load. Positive indicates amperage 
+     * flowing TO the load. Negative indicates amperage flowing FROM the load (should 
+     * no really happen, but won't hurt anything if it does)
+     */
     float LoadAmp;
 
+    // TODO: prevent negative values?
+    /**
+     * @brief Current amperage coming from solar power supply. Positive indicates amperage
+     * coming FROM the power supply, negative indicates amperage flowing TO the power supply 
+     * (should never happen)
+     */
     float SolarAmp;
 
+    // TODO: prevent negative values?
+    /**
+     * @brief Current amperage coming from AC PSU. Positive indicates current flowing FROM the power
+     * supply, negative indicates amperage flowing TO the power supply (should never happen)
+     */
     float AcAmp;
 
+    /**
+     * @brief Flag indicating whether the PC is currently connected
+     */
     bool PcConnected;
 };
 
