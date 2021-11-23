@@ -8,6 +8,9 @@
 
 #include <Arduino.h>
 
+void printCommandHeader(Print &target, State &state);
+void printCommandHeader_p(Print &target, State &state, const char *label);
+
 void printTimestamp(Print &target, DateTime *dtm);
 
 void printWithPipe_p(Print &target, const char *text);

@@ -68,11 +68,11 @@ struct State
      */
     float Humidity;
 
-    uint16_t DehumCurrentStateSeconds;
+    uint32_t DehumCurrentStateSeconds;
 
-    uint16_t BatteryCurrentStateSeconds;
+    uint32_t BatteryCurrentStateSeconds;
 
-    uint16_t LastPingSeconds;
+    uint32_t LastPingSeconds;
 
     boolean DehumEnabled;
 

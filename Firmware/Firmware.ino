@@ -20,26 +20,29 @@
  */
 
 // Output Format:
-// <ISO_DTM>|STAT|<UptimeSeconds>|<BytesFreeMem>|<DehumEnabled>|<TelescopeOutState>|<DehumOutState>|<Aux1OutState>|<AcInState>|<BatteryCurrentStateSeconds>|<DehumCurrentStateSeconds>
-// <ISO_DTM>|PWR|<Voltage>|<Battery>|<Load>|<Solar>|<AC>
-// <ISO_DTM>|ENV|<CurrentTemperatureC>|<CurrentHumidityPercent>
-// <ISO_DTM>|VERSION|<FirmwareVersion>
-// <ISO_DTM>|CONFIG|AverageReadingCount|<value>
-// <ISO_DTM>|CONFIG|UpdateFrequency|<value>
-// <ISO_DTM>|CONFIG|WriteInterval|<value>
-// <ISO_DTM>|CONFIG|VoltageCalibration|<value>
-// <ISO_DTM>|CONFIG|R1Actual|<value>
-// <ISO_DTM>|CONFIG|R2Actual|<value>
-// <ISO_DTM>|CONFIG|AmpDigitalOffset1|<value>
-// <ISO_DTM>|CONFIG|AmpDigitalOffset2|<value>
-// <ISO_DTM>|CONFIG|AmpDigitalOffset3|<value>
-// <ISO_DTM>|CONFIG|TemperatureCalibration|<value>
-// <ISO_DTM>|CONFIG|HumidityCalibration|<value>
-// <ISO_DTM>|CONFIG|TargetHumidity|<value>
-// <ISO_DTM>|CONFIG|HumidityHysterisis|<value>
-// <ISO_DTM>|CONFIG|AcBackupPoint|<value>
-// <ISO_DTM>|<cmd>|OK
-// <ISO_DTM>|<cmd>|FAIL
+// <ISO_DTM>|<UptimeSeconds>|STAT|<BytesFreeMem>|<DehumEnabled>|<TelescopeOutState>|<DehumOutState>|<Aux1OutState>|<AcInState>|<BatteryCurrentStateSeconds>|<DehumCurrentStateSeconds>|<LastPingSeconds>
+// <ISO_DTM>|<UptimeSeconds>|PWR|<Voltage>|<Battery>|<Load>|<Solar>|<AC>
+// <ISO_DTM>|<UptimeSeconds>|ENV|<CurrentTemperatureC>|<CurrentHumidityPercent>
+// <ISO_DTM>|<UptimeSeconds>|VERSION|<FirmwareVersion>
+// <ISO_DTM>|<UptimeSeconds>|CONFIG|AverageReadingCount|<value>
+// <ISO_DTM>|<UptimeSeconds>|CONFIG|UpdateFrequency|<value>
+// <ISO_DTM>|<UptimeSeconds>|CONFIG|WriteInterval|<value>
+// <ISO_DTM>|<UptimeSeconds>|CONFIG|VoltageCalibration|<value>
+// <ISO_DTM>|<UptimeSeconds>|CONFIG|R1Actual|<value>
+// <ISO_DTM>|<UptimeSeconds>|CONFIG|R2Actual|<value>
+// <ISO_DTM>|<UptimeSeconds>|CONFIG|AmpDigitalOffset1|<value>
+// <ISO_DTM>|<UptimeSeconds>|CONFIG|AmpDigitalOffset2|<value>
+// <ISO_DTM>|<UptimeSeconds>|CONFIG|AmpDigitalOffset3|<value>
+// <ISO_DTM>|<UptimeSeconds>|CONFIG|TemperatureCalibration|<value>
+// <ISO_DTM>|<UptimeSeconds>|CONFIG|HumidityCalibration|<value>
+// <ISO_DTM>|<UptimeSeconds>|CONFIG|TargetHumidity|<value>
+// <ISO_DTM>|<UptimeSeconds>|CONFIG|HumidityHysterisis|<value>
+// <ISO_DTM>|<UptimeSeconds>|CONFIG|AcBackupPoint|<value>
+// <ISO_DTM>|<UptimeSeconds>|<cmd>|OK
+// <ISO_DTM>|<UptimeSeconds>|<cmd>|FAIL
+// <ISO_DTM>|<UptimeSeconds>|<cmd>|OPEN
+// <ISO_DTM>|<UptimeSeconds>|<cmd>|CLOSE
+// HIST:<LogLine>
 
 // Input commands:
 // VERSION - Get the current firmware version
@@ -76,6 +79,7 @@
 // PING - Notify the controller that the PC is still alive
 // PC OFF - Notify the controller that the PC is no longer connected
 // PC ON - Notify the controller that the PC is now connected
+// READ - Dump any historical log lines that are stored on the controller, then clear the log history
 
 // Config Option conversion:
 //   AverageReadingCount[19]      => AvgRdCt[7] .. 24 bytes saved
@@ -146,8 +150,9 @@
 #define BATTERY_CHANGE_MIN_SECOND 30
 
 #define MAX_PING_TIME 15
+#define MAX_DUMP_MS_PER_CYCLE 400
 
-#define OVERWRITE_EEPROM
+// #define OVERWRITE_EEPROM
 
 //========================================================================
 #pragma endregion
@@ -234,7 +239,10 @@ char serialInput[50];
  */
 bool stringComplete = false;
 
-// 2021-11-21T17:41:33|PWR|12.92|-0.05|0.04|0.03|-0.04
+// /**
+//  * @brief Number of minutes that have elapsed since midnight
+//  */
+// uint16_t minutesSinceMidnight = 1400;
 
 /**
  * @brief Object used to hold current configuration
@@ -273,24 +281,29 @@ State state = {
 SimpleDHT22 dht(PIN_DHT);
 
 /**
- * @brief SD Card interface instance
+ * @brief Handle for the log file on the SD card
  */
-Sd2Card card;
+File logFile;
 
 /**
- * @brief SD Card volume instance
+ * @brief  Name of the log file on the SD card
  */
-SdVolume volume;
-
-/**
- * @brief SD Card filesystem root instance
- */
-SdFile root;
+char logFileName[8] = "dht.log";
 
 /**
  * @brief Realtime Clock Instance
  */
 RTC_PCF8523 rtc;
+
+/**
+ * @brief Current index of the serial input
+ */
+uint8_t currentSerialPos = 0;
+
+/**
+ * @brief If true, we are currently being instructed to dump the historical log file
+ */
+bool doReadLog = false;
 
 //========================================================================
 #pragma endregion
@@ -309,9 +322,13 @@ void setup()
     allocateArrays();
     setupPins();
     setupRtc();
-    setupSdCard();
 
     updateDtm();
+
+    setupSdCard();
+
+    setPcDisconnected();
+    // setPcConnected();
 }
 
 /**
@@ -332,14 +349,14 @@ void setupSdCard()
     if (!SD.begin(PIN_SD_SELECT)) 
     {
         writeLine_p(Serial, STR_SD_FAILED);
-        abort();
+        panic();
     }
 }
 
 /**
- * @brief Abort firmware execution and flash the status light
+ * @brief Panic program execution and flash the status light
  */
-void abort()
+void panic()
 {
     while (1)
     {
@@ -356,7 +373,7 @@ void setupRtc()
     if (!rtc.begin())
     {
         writeLine_p(Serial, STR_RTC_FAIL);
-        abort();
+        panic();
     }
     
     // this is only called if the time has never been set or after the battery has died
@@ -436,9 +453,8 @@ void loop()
     readDehumButton();
     readTelescopeButton();
     checkPing();
+    readLog();
 }
-
-uint8_t currentSerialPos = 0;
 
 /**
  * @brief occurs whenever a new data comes in the hardware serial RX.  
@@ -497,11 +513,12 @@ void processSerialInput()
  */
 void updateClock()
 {
-    // update the clock
+    // update the clock and print the system status
     if (state.LastTick == 0 || (millis() - state.LastTick) >= 1000)
     {
         updateDtm();
         printSystemStatus(getPrintTarget(), state, config);
+        flushLog();
 
         state.LastTick = millis();
     }
@@ -538,6 +555,7 @@ void readPowerSensors()
             if (readings == config.AverageReadingCount)
             {
                 printPowerStatus(getPrintTarget(), state, config);
+                flushLog();
 
                 state.LastWriteTime = millis();
             }
@@ -554,6 +572,7 @@ void readEnvSensors()
     {
         readDht(PIN_DHT, &state.Temperature, &state.Humidity);
         printEnvironmentStatus(getPrintTarget(), state, config);
+        flushLog();
 
         state.LastDhtReadTime = millis();
     }
@@ -584,12 +603,12 @@ void checkHumidity()
         uint8_t onThreshold = config.TargetHumidity + (config.HumidityHysterisis / 2);
         uint8_t offThreshold = config.TargetHumidity - (config.HumidityHysterisis / 2);
 
-        if (state.Humidity >= onThreshold)
+        if (state.Humidity >= onThreshold && !state.DehumOutState)
         {
             setRelayState(&state.DehumOutState, PIN_DEHUMIDIFIER_OUTPUT_RELAY, true);
             state.DehumCurrentStateSeconds = 0;
         }
-        else if (state.Humidity <= offThreshold)
+        else if (state.Humidity <= offThreshold && state.DehumOutState)
         {
             setRelayState(&state.DehumOutState, PIN_DEHUMIDIFIER_OUTPUT_RELAY, false);
             state.DehumCurrentStateSeconds = 0;
@@ -662,8 +681,11 @@ void setHumidityControl(bool newState)
  */
 void checkPing()
 {
-    if (state.LastPingSeconds > MAX_PING_TIME && !state.PcConnected)
+    if (state.LastPingSeconds > MAX_PING_TIME && state.PcConnected)
+    {
+        setPcDisconnected();
         state.PcConnected = false;
+    }
 }
 
 //========================================================================
@@ -682,7 +704,10 @@ void handleSerialCommand(const char *command)
 
     uint8_t offset = 0;
 
-    if (startsWith_p(command, STR_PWR, offset))
+    if (startsWith_p(command, STR_READ, offset))
+        startLogDump();
+
+    else if (startsWith_p(command, STR_PWR, offset))
     {
         offset += strlen_P(STR_PWR) + 1;
 
@@ -741,7 +766,7 @@ void handleSerialCommand(const char *command)
         else if (parseConfigValFloat_p(command, &config.HumidityCalibration, STR_HUMIDITY_CALIBRATION, offset)) { }
         else if (parseConfigValByte_p(command, &config.TargetHumidity, STR_TARGET_HUMIDITY, offset)) { }
         else if (parseConfigValByte_p(command, &config.HumidityHysterisis, STR_HUMIDITY_HYSTERISIS, offset)) { }
-        else if (parseConfigValShort_p(command, &config.AcBackupPoint, STR_AC_BACKUP_POINT, offset)) { }
+        else if (parseConfigValByte_p(command, &config.AcBackupPoint, STR_AC_BACKUP_POINT, offset)) { }
         else
             fail = true;
     }
@@ -751,8 +776,8 @@ void handleSerialCommand(const char *command)
 
     else if (startsWith_p(command, STR_VERSION, offset))
     {
-        printTimestamp(Serial, state.CurrentDtm);
-        printPipePair_p(Serial, STR_VERSION, VERSION, true);
+        printCommandHeader_p(Serial, state, STR_VERSION);
+        Serial.println(VERSION);
     }
 
     else if (startsWith_p(command, STR_SAVE, offset))
@@ -775,12 +800,11 @@ void handleSerialCommand(const char *command)
         offset += strlen_P(STR_PC) + 1;
 
         if (startsWith_p(command, STR_ON, offset))
-        {
-            state.PcConnected = true;
-            state.LastPingSeconds = 0;
-        }
+            setPcConnected();
+
         else if (startsWith_p(command, STR_OFF, offset))
-            state.PcConnected = false;
+            setPcDisconnected();
+            
         else
             fail = true;
     }
@@ -789,8 +813,7 @@ void handleSerialCommand(const char *command)
         fail = true;
 
     
-    printTimestamp(Serial, state.CurrentDtm);
-    printWithPipe_p(Serial, STR_CMD);
+    printCommandHeader_p(Serial, state, STR_CMD);
     printWithPipe(Serial, command);
 
     if (fail)
@@ -850,13 +873,13 @@ boolean parseConfigValShort_p(const char *command, int8_t *destination, const ch
 /**
  * @brief Parse an incoming serial config floating point value
  */
-boolean parseConfigValInt_p(const char *command, int16_t *destination, const char *itemName, uint8_t offset)
+boolean parseConfigValInt_p(const char *command, uint16_t *destination, const char *itemName, uint8_t offset)
 {
     if (!startsWith_p(command, itemName, offset))
         return false;
 
     offset += strlen_P(itemName) + 1;
-    *destination = atoi(command + offset);
+    *destination = (uint16_t)atol(command + offset);
 
     printConfigEntry_p(Serial, state, itemName, (uint32_t)*destination);
 
@@ -978,14 +1001,25 @@ void updateDtm()
     state.DehumCurrentStateSeconds += 1;
     state.BatteryCurrentStateSeconds += 1;
     state.LastPingSeconds += 1;
-}
 
-Print &getPrintTarget()
-{
-    // if (writeToSd)
-    //     return 0;
-    // else
-        return Serial;
+    // // if we are at the top of the minute, increment the minute counter
+    // if (state.CurrentDtm->second() == 0)
+    //     minutesSinceMidnight += 1;
+
+    // // perform the midnight tick
+    // //
+    // // 1350 minutes is 22.5 hours, this is to ensure that we only roll the midnight clock once per day
+    // // and we chose 22.5 hours just to make sure that, in case minutes may be missed, that there is 
+    // // plenty of wiggle room for error
+    // if (state.CurrentDtm->hour() == 0 && state.CurrentDtm->minute() == 0 && minutesSinceMidnight > 1350)
+    // {
+    //     Serial.println(F("midnight!"));
+
+    //     // lets roll the log file at midnight
+    //     rollLogFile();
+
+    //     minutesSinceMidnight = 0;
+    // }
 }
 
 //========================================================================
@@ -1045,6 +1079,173 @@ float getAmperage(int pin, int offset)
 void readDht(int pin, float *temp, float *hum)
 {
     dht.read2(temp, hum, NULL);
+}
+
+//========================================================================
+#pragma endregion
+
+#pragma region SD Card Logging Support
+//========================================================================
+
+/**
+ * @brief Get the print object that is the target for log output. 
+ *
+ * Will either be the Serial connection, or, if the PC is disconnected, the
+ * SD card log file
+ */
+Print &getPrintTarget()
+{
+    if (!state.PcConnected && logFile)
+        return logFile;
+    else
+        return Serial;
+}
+
+/**
+ * @brief Instruct the controller to begin dumping the log file back to the PC
+ */
+void startLogDump()
+{
+    setPcConnected();
+
+    doReadLog = true;
+
+    closeLogFile();
+
+    openLogFile();
+
+    logFile.seek(0);
+}
+
+/**
+ *  @brief Read the log file out to the serial connection
+ * 
+ * This is designed to be called on each loop in a way that it will
+ * dump a portion of the log, then after a specified amount of time
+ * has elapsed, it'll abort so that the program can continue to 
+ * read sensors and accept PC input.
+ */
+void readLog()
+{
+    if (!doReadLog)
+        return;
+
+    if (logFile)
+    {
+        bool needPrefix = true;
+        int character = -1;
+
+        // we track the start time so that we don't take too many CPU cycles
+        uint32_t dumpStartTime = millis();
+        bool aborted = false;
+
+        // while (logFile.available()) 
+        while ((character = logFile.read()) != -1)
+        {
+            if (needPrefix == true)
+            {
+                write_p(Serial, STR_HIST);
+                needPrefix = false;
+            }
+
+            Serial.write(character);
+
+            if (character == '\n')
+            {
+                // at the end of each line, we check to see if we have exceeded the maximum
+                // allowed dump duration
+                if ((millis() - dumpStartTime) > MAX_DUMP_MS_PER_CYCLE)
+                {
+                    aborted = true;
+                    break;
+                }
+                else
+                    needPrefix = true;
+            }
+        }
+
+        if (!aborted)
+        {
+            doReadLog = false;
+            closeLogFile();
+
+            SD.remove(logFileName);
+        }
+    }
+}
+
+/**
+ * @brief Switch the controller into "PC Disconnected" mode. This enabled SD logging.
+ */
+void setPcDisconnected()
+{
+    state.PcConnected = false;
+    doReadLog = false;
+
+    openLogFile();
+}
+
+/**
+ * @brief Switch the controller into "PC connected" mode. This disables SD logging
+ */
+void setPcConnected()
+{
+    state.LastPingSeconds = 0;
+    state.PcConnected = true;
+
+    closeLogFile();
+}
+
+/**
+ * @brief Clush the buffer to the SD card. Needs to be called any time text
+ * is written to the SD card logfile
+ */
+void flushLog()
+{
+    if (logFile && !doReadLog && state.PcConnected == false)
+        logFile.flush();
+}
+
+/**
+ * @brief Open the log file on the SD card for reading or writing
+ */
+void openLogFile()
+{
+    if (logFile)
+        return;
+    
+    printCommandHeader(Serial, state);
+    writeLine_p(Serial, STR_OPEN);
+
+    logFile = SD.open(logFileName, FILE_WRITE);
+
+    if (!logFile)
+    {
+        writeLine_p(Serial, STR_SD_FAILED);
+        panic();
+    }
+
+    printCommandHeader(logFile, state);
+    writeLine_p(logFile, STR_OPEN);
+}
+
+/**
+ * @brief Close the log file
+ */
+void closeLogFile()
+{
+    if (logFile)
+    {
+        printCommandHeader(Serial, state);
+        writeLine_p(Serial, STR_CLOSE);
+
+        printCommandHeader(logFile, state);
+        writeLine_p(logFile, STR_CLOSE);
+
+        logFile.close();
+
+        logFile = File();
+    }
 }
 
 //========================================================================

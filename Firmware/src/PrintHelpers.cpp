@@ -1,5 +1,17 @@
 #include "PrintHelpers.h"
 
+void printCommandHeader(Print &target, State &state)
+{
+    printTimestamp(target, state.CurrentDtm);
+    printWithPipe(target, state.UptimeSeconds);
+}
+
+void printCommandHeader_p(Print &target, State &state, const char *label)
+{
+    printCommandHeader(target, state);
+    printWithPipe_p(target, label);
+}
+
 void printTimestamp(Print &target, DateTime *dtm)
 {
     char buffer[20];
@@ -60,17 +72,19 @@ void printPipePair_p(Print &target, const char *name, const char *value, boolean
  */
 void printEnvironmentStatus(Print &target, State &state, ConfigObject &config)
 {
-    printTimestamp(target, state.CurrentDtm);
-    printWithPipe_p(target, STR_ENV);
+    printCommandHeader_p(target, state, STR_ENV);
+    // printTimestamp(target, state.CurrentDtm);
+    // printWithPipe_p(target, STR_ENV);
     printWithPipe(target, state.Temperature);
     target.println(state.Humidity);
 }
 
 void printSystemStatus(Print &target, State &state, ConfigObject &config)
 {
-    printTimestamp(target, state.CurrentDtm);
-    printWithPipe_p(target, STR_STAT);
-    printWithPipe(target, state.UptimeSeconds);
+    printCommandHeader_p(target, state, STR_STAT);
+    // printTimestamp(target, state.CurrentDtm);
+    // printWithPipe_p(target, STR_STAT);
+    // printWithPipe(target, state.UptimeSeconds);
     printWithPipe(target, getFreeMemory());
     printWithPipe(target, state.DehumEnabled);
     printWithPipe(target, state.TelescopeOutState);
@@ -84,8 +98,9 @@ void printSystemStatus(Print &target, State &state, ConfigObject &config)
 
 void printPowerStatus(Print &target, State &state, ConfigObject &config)
 {
-    printTimestamp(target, state.CurrentDtm);
-    printWithPipe_p(target, STR_PWR);
+    printCommandHeader_p(target, state, STR_PWR);
+    // printTimestamp(target, state.CurrentDtm);
+    // printWithPipe_p(target, STR_PWR);
 
     printWithPipe(target, state.Volt);
     printWithPipe(target, state.BatteryAmp);
@@ -96,8 +111,9 @@ void printPowerStatus(Print &target, State &state, ConfigObject &config)
 
 void printConfigEntryHeader_P(Print &target, State &state, const char *name)
 {
-    printTimestamp(target, state.CurrentDtm);
-    printWithPipe_p(target, STR_CONFIG);
+    printCommandHeader_p(target, state, STR_CONFIG);
+    // printTimestamp(target, state.CurrentDtm);
+    // printWithPipe_p(target, STR_CONFIG);
     printWithPipe_p(target, name);
 }
 
