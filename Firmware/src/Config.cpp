@@ -20,6 +20,9 @@ ConfigObject getDefaultConfig()
         0.0,   // HumidityCalibration
         60,    // TargetHumidity
         4,     // HumidityHysterisis
-        50     // AcBackupPoint
+        50,    // AcBackupPoint
+        12,    // BatteryCapacityAh
+        0.3,   // BatteryEndingAmps
+        14.4   // BatteryAbsorbVoltage
     };
 }

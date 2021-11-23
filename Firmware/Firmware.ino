@@ -19,6 +19,12 @@
  *  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
+// TODO:
+// RESET SOC
+// RESET CONFIG
+// RESET BOARD
+// RESET LOG
+
 // Output Format:
 // <ISO_DTM>|<UptimeSeconds>|STAT|<BytesFreeMem>|<DehumEnabled>|<TelescopeOutState>|<DehumOutState>|<Aux1OutState>|<AcInState>|<BatteryCurrentStateSeconds>|<DehumCurrentStateSeconds>|<LastPingSeconds>
 // <ISO_DTM>|<UptimeSeconds>|PWR|<Voltage>|<Battery>|<Load>|<Solar>|<AC>
@@ -38,10 +44,13 @@
 // <ISO_DTM>|<UptimeSeconds>|CONFIG|TargetHumidity|<value>
 // <ISO_DTM>|<UptimeSeconds>|CONFIG|HumidityHysterisis|<value>
 // <ISO_DTM>|<UptimeSeconds>|CONFIG|AcBackupPoint|<value>
+// <ISO_DTM>|<UptimeSeconds>|CONFIG|BatteryCapacityAh|<value>
+// <ISO_DTM>|<UptimeSeconds>|CONFIG|BatteryEndingAmps|<value>
+// <ISO_DTM>|<UptimeSeconds>|CONFIG|BatteryAbsorbVoltage|<value>
 // <ISO_DTM>|<UptimeSeconds>|<cmd>|OK
 // <ISO_DTM>|<UptimeSeconds>|<cmd>|FAIL
-// <ISO_DTM>|<UptimeSeconds>|<cmd>|OPEN
-// <ISO_DTM>|<UptimeSeconds>|<cmd>|CLOSE
+// <ISO_DTM>|<UptimeSeconds>|OPEN
+// <ISO_DTM>|<UptimeSeconds>|CLOSE
 // HIST:<LogLine>
 
 // Input commands:
@@ -60,7 +69,10 @@
 // SET HumidityCalibration <val> - HCal -- 
 // SET TargetHumidity <val> - TgHum -- 
 // SET HumidityHysterisis <val> - HumHys -- 
-// SET AcBackupPoint <val> - ACBV --
+// SET AcBackupPoint <val> - ACBP --
+// SET BatteryCapacityAh <val> -  -- 
+// SET BatteryEndingAmps <val> -  -- 
+// SET BatteryAbsorbVoltage <val> -  -- 
 // SET TIME <val in format yyyy-MM-ddTHH:mm:ss>
 // ENABLE DEHUM
 // DISABLE DEHUM
@@ -95,10 +107,14 @@
 //   HumidityCalibration[19]      => HCal[4]    .. 30 bytes saved
 //   TargetHumidity[14]           => TgHum[5]   .. 18 bytes saved
 //   HumidityHysterisis[18]       => HumHys[6]  .. 24 bytes saved
-//   AcBackupPoint[13]            => ACBV[4]    .. 18 bytes saved
+//   AcBackupPoint[13]            => ACBP[4]    .. 18 bytes saved
+
+//   BatteryCapacityAh[17]        => BCA[3]     .. 28 bytes saved
+//   BatteryEndingAmps[17]        => BEA[3]     .. 28 bytes saved
+//   BatteryAbsorbVoltage[20]     => BAV[3]     .. 34 bytes saved
 
 // TOTAL: 
-//        300 bytes progmem saved if implemented
+//        390 bytes progmem saved if implemented
 //         30 bytes heap saved if implemented and serial reservation is decreased bv 15
 
 // Serial commmand conversion
@@ -272,7 +288,9 @@ State state = {
     false,          // TelescopeOutState
     false,          // Aux1OutState
     false,          // AcInState
-    false           // PcConnected
+    false,          // PcConnected
+    0.0,            // BatteryCapacityAvailable
+    100             // BatterySoc
 };
 
 /**
@@ -319,6 +337,7 @@ void setup()
 {
     setupSerial();
     initConfig();
+    readLastSoc();
     allocateArrays();
     setupPins();
     setupRtc();
@@ -329,6 +348,18 @@ void setup()
 
     setPcDisconnected();
     // setPcConnected();
+}
+
+void readLastSoc()
+{
+    uint8_t lastSoc = EEPROM.read(EEPROM.length()-1);
+
+    if (lastSoc <= 100)
+        state.BatterySoc = lastSoc;
+
+    // TODO: update state.BatteryCapacityAvailable based on recovered BatterySoc
+
+    Serial.println(lastSoc);
 }
 
 /**
@@ -626,11 +657,14 @@ void checkHumidity()
 }
 
 /**
- * @brief Routine that is run to check if the battery charge level has dropped low enough to 
- * require the AC backup to be engaged
+ * @brief Routine that monitors the state of the battery
  */
 void checkBattery()
 {
+    // TODO: update state.BatteryCapacityAvailable based on accumulated counters
+    // TODO: Add "time since last update" for battery capacity
+    // TODO: Add "milliamps charged since last update" for battery capacity tracking
+    // TODO: only check the battery every x number of milliseconds (maybe 5 seconds...)
     // nothing to do right now, this is a placeholder for after the 
     // capacity tracking is enabled
 }
@@ -774,6 +808,12 @@ void handleSerialCommand(const char *command)
         else if (parseConfigValByte_p(command, &config.TargetHumidity, STR_TARGET_HUMIDITY, offset)) { }
         else if (parseConfigValByte_p(command, &config.HumidityHysterisis, STR_HUMIDITY_HYSTERISIS, offset)) { }
         else if (parseConfigValByte_p(command, &config.AcBackupPoint, STR_AC_BACKUP_POINT, offset)) { }
+        else if (parseConfigValByte_p(command, &config.BatteryCapacityAh, STR_BATTERY_CAPACITY_AH, offset)) 
+        { 
+            // TODO: on capacity update, reset state.BatteryCapacityAvailable and SOC
+        }
+        else if (parseConfigValFloat_p(command, &config.BatteryEndingAmps, STR_BATTERY_ENDING_AMPS, offset)) { }
+        else if (parseConfigValFloat_p(command, &config.BatteryAbsorbVoltage, STR_BATTERY_ABSORB_VOLTAGE, offset)) { }
         else
             fail = true;
     }

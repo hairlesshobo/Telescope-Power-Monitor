@@ -100,6 +100,26 @@ struct ConfigObject
    * @brief Battery capacity set point below which the AC power supply will automatically connect
    */
   uint8_t AcBackupPoint;
+
+  /**
+   * @brief Capacity, in amp hours, that this battery (bank) holds
+   */
+  uint8_t BatteryCapacityAh;
+
+  /**
+   * @brief Charging amps that must be reached in order to indicate that the 
+   * battery has reached 100% SOC
+   */
+  float BatteryEndingAmps;
+
+  /**
+   * @brief Voltage that must be reached in order for the battery to enter the absorb stage.
+   * 
+   * Once the absorb voltage is reached, and the charge current drops below BatteryEndingAmps
+   * the battery SOC is reset to 100% automatically and the battery is considered, once again,
+   * to be fully charged.
+   */
+  float BatteryAbsorbVoltage;
 };
 
 ConfigObject getDefaultConfig();

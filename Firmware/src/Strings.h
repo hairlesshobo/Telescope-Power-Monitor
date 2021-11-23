@@ -17,6 +17,9 @@ const char str_HumidityCalibration[] PROGMEM = "HumidityCalibration";
 const char str_TargetHumidity[] PROGMEM = "TargetHumidity";
 const char str_HumidityHysterisis[] PROGMEM = "HumidityHysterisis";
 const char str_AcBackupPoint[] PROGMEM = "AcBackupPoint";
+const char str_BatteryCapacityAh[] PROGMEM = "BatteryCapacityAh";
+const char str_BatteryEndingAmps[] PROGMEM = "BatteryEndingAmps";
+const char str_BatteryAbsorbVoltage[] PROGMEM = "BatteryAbsorbVoltage";
 const char str_Config[] PROGMEM = "CONFIG";
 const char str_Version[] PROGMEM = "VERSION";
 const char str_Save[] PROGMEM = "SAVE";
@@ -64,6 +67,9 @@ const char *const string_table[] PROGMEM = {
     str_TargetHumidity,
     str_HumidityHysterisis,
     str_AcBackupPoint,
+    str_BatteryCapacityAh,
+    str_BatteryEndingAmps,
+    str_BatteryAbsorbVoltage,
     str_Config,
     str_Version,
     str_Save,
@@ -110,35 +116,38 @@ const char *const string_table[] PROGMEM = {
 #define STR_TARGET_HUMIDITY string_table[11]
 #define STR_HUMIDITY_HYSTERISIS string_table[12]
 #define STR_AC_BACKUP_POINT string_table[13]
-#define STR_CONFIG string_table[14]
-#define STR_VERSION string_table[15]
-#define STR_SAVE string_table[16]
-#define STR_CLEAR string_table[17]
-#define STR_PAUSE string_table[18]
-#define STR_RESUME string_table[19]
-#define STR_OK string_table[20]
-#define STR_FAIL string_table[21]
-#define STR_PWR string_table[22]
-#define STR_ON string_table[23]
-#define STR_OFF string_table[24]
-#define STR_TELESCOPE string_table[25]
-#define STR_AUX1 string_table[26]
-#define STR_DEHUM string_table[27]
-#define STR_AC string_table[28]
-#define STR_SET string_table[29]
-#define STR_TIME string_table[30]
-#define STR_WRITE_DEFAULT_CONFIG string_table[31]
-#define STR_SD_FAILED string_table[32]
-#define STR_RTC_FAIL string_table[33]
-#define STR_RTC_INIT string_table[34]
-#define STR_CMD string_table[35]
-#define STR_STAT string_table[36]
-#define STR_ENV string_table[37]
-#define STR_PING string_table[38]
-#define STR_PC string_table[39]
-#define STR_READ string_table[40]
-#define STR_HIST string_table[41]
-#define STR_CLOSE string_table[42]
-#define STR_OPEN string_table[43]
+#define STR_BATTERY_CAPACITY_AH string_table[14]
+#define STR_BATTERY_ENDING_AMPS string_table[15]
+#define STR_BATTERY_ABSORB_VOLTAGE string_table[16]
+#define STR_CONFIG string_table[17]
+#define STR_VERSION string_table[18]
+#define STR_SAVE string_table[19]
+#define STR_CLEAR string_table[20]
+#define STR_PAUSE string_table[21]
+#define STR_RESUME string_table[22]
+#define STR_OK string_table[23]
+#define STR_FAIL string_table[24]
+#define STR_PWR string_table[25]
+#define STR_ON string_table[26]
+#define STR_OFF string_table[27]
+#define STR_TELESCOPE string_table[28]
+#define STR_AUX1 string_table[29]
+#define STR_DEHUM string_table[30]
+#define STR_AC string_table[31]
+#define STR_SET string_table[32]
+#define STR_TIME string_table[33]
+#define STR_WRITE_DEFAULT_CONFIG string_table[34]
+#define STR_SD_FAILED string_table[35]
+#define STR_RTC_FAIL string_table[36]
+#define STR_RTC_INIT string_table[37]
+#define STR_CMD string_table[38]
+#define STR_STAT string_table[39]
+#define STR_ENV string_table[40]
+#define STR_PING string_table[41]
+#define STR_PC string_table[42]
+#define STR_READ string_table[43]
+#define STR_HIST string_table[44]
+#define STR_CLOSE string_table[45]
+#define STR_OPEN string_table[46]
 
 #endif // _STRINGS_H

@@ -147,6 +147,19 @@ struct State
      * @brief Flag indicating whether the PC is currently connected
      */
     bool PcConnected;
+
+    /**
+     * @brief How much capacity is remaining in the battery
+     */
+    float BatteryCapacityAvailable;
+
+    /**
+     * @brief Current battery state of charge.
+     * 
+     * This is stored to the EEPROM every 10%. This is done to minimize stress on the EEPROM
+     * while still allowing the SOC to be remembered (mostly) after a power loss.
+     */
+    uint8_t BatterySoc;
 };
 
 #endif // _STATE_H
