@@ -73,8 +73,6 @@ void printPipePair_p(Print &target, const char *name, const char *value, boolean
 void printEnvironmentStatus(Print &target, State &state, ConfigObject &config)
 {
     printCommandHeader_p(target, state, STR_ENV);
-    // printTimestamp(target, state.CurrentDtm);
-    // printWithPipe_p(target, STR_ENV);
     printWithPipe(target, state.Temperature);
     target.println(state.Humidity);
 }
@@ -82,9 +80,6 @@ void printEnvironmentStatus(Print &target, State &state, ConfigObject &config)
 void printSystemStatus(Print &target, State &state, ConfigObject &config)
 {
     printCommandHeader_p(target, state, STR_STAT);
-    // printTimestamp(target, state.CurrentDtm);
-    // printWithPipe_p(target, STR_STAT);
-    // printWithPipe(target, state.UptimeSeconds);
     printWithPipe(target, getFreeMemory());
     printWithPipe(target, state.DehumEnabled);
     printWithPipe(target, state.TelescopeOutState);
@@ -99,14 +94,13 @@ void printSystemStatus(Print &target, State &state, ConfigObject &config)
 void printPowerStatus(Print &target, State &state, ConfigObject &config)
 {
     printCommandHeader_p(target, state, STR_PWR);
-    // printTimestamp(target, state.CurrentDtm);
-    // printWithPipe_p(target, STR_PWR);
-
     printWithPipe(target, state.Volt);
     printWithPipe(target, state.BatteryAmp);
     printWithPipe(target, state.LoadAmp);
     printWithPipe(target, state.SolarAmp);
-    target.println(state.AcAmp);
+    printWithPipe(target, state.AcAmp);
+    printWithPipe(target, state.BatterySoc);
+    target.println(state.BatteryCapacityAh);
 }
 
 void printConfigEntryHeader_P(Print &target, State &state, const char *name)
@@ -154,4 +148,7 @@ void printConfig(Print &target, ConfigObject &config, State &state)
     printConfigEntry_p(target, state, STR_TARGET_HUMIDITY, (uint32_t)config.TargetHumidity);
     printConfigEntry_p(target, state, STR_HUMIDITY_HYSTERISIS, (uint32_t)config.HumidityHysterisis);
     printConfigEntry_p(target, state, STR_AC_BACKUP_POINT, (uint32_t)config.AcBackupPoint);
+    printConfigEntry_p(target, state, STR_BATTERY_CAPACITY_AH, (uint32_t)config.BatteryCapacityAh);
+    printConfigEntry_p(target, state, STR_BATTERY_ENDING_AMPS, config.BatteryEndingAmps);
+    printConfigEntry_p(target, state, STR_BATTERY_ABSORB_VOLTAGE, config.BatteryAbsorbVoltage);
 }

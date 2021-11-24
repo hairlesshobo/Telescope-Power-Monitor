@@ -27,7 +27,7 @@
 
 // Output Format:
 // <ISO_DTM>|<UptimeSeconds>|STAT|<BytesFreeMem>|<DehumEnabled>|<TelescopeOutState>|<DehumOutState>|<Aux1OutState>|<AcInState>|<BatteryCurrentStateSeconds>|<DehumCurrentStateSeconds>|<LastPingSeconds>
-// <ISO_DTM>|<UptimeSeconds>|PWR|<Voltage>|<Battery>|<Load>|<Solar>|<AC>
+// <ISO_DTM>|<UptimeSeconds>|PWR|<Voltage>|<BatteryAmps>|<LoadAmps>|<SolarAmps>|<AcAmps>|<BatterySoc>|<BatteryCapacityAh>
 // <ISO_DTM>|<UptimeSeconds>|ENV|<CurrentTemperatureC>|<CurrentHumidityPercent>
 // <ISO_DTM>|<UptimeSeconds>|VERSION|<FirmwareVersion>
 // <ISO_DTM>|<UptimeSeconds>|CONFIG|AverageReadingCount|<value>
@@ -168,6 +168,8 @@
 #define MAX_PING_TIME 15
 #define MAX_DUMP_MS_PER_CYCLE 400
 
+#define SOC_STORE_FREQUENCY_SECONDS 60
+
 // #define OVERWRITE_EEPROM
 
 //========================================================================
@@ -241,14 +243,17 @@ uint8_t readings = 0;
 /**
  * @brief Debounce tracking for humidity control button
  */
-int dehumButtonLastState = LOW;
+byte dehumButtonLastState = LOW;
 
 /**
  * @brief Debounce tracking for telescope output button
  */
-int telescopeButtonLastState = LOW;
+byte telescopeButtonLastState = LOW;
 
-char serialInput[50];
+/**
+ * @brief Array to handle input commands from serial port
+ */
+char serialInput[35];
 
 /**
  * @brief If true, the string has finished being read from the serial port
@@ -289,8 +294,9 @@ State state = {
     false,          // Aux1OutState
     false,          // AcInState
     false,          // PcConnected
-    0.0,            // BatteryCapacityAvailable
-    100             // BatterySoc
+    100,            // BatterySoc
+    0.0,            // BatteryCapacityAh
+    0.0             // BatteryCapacityMicroAH
 };
 
 /**
@@ -355,10 +361,19 @@ void readLastSoc()
     uint8_t lastSoc = EEPROM.read(EEPROM.length()-1);
 
     if (lastSoc <= 100)
+    {
         state.BatterySoc = lastSoc;
+        state.BatteryCapacityAh = config.BatteryCapacityAh * ((float)lastSoc / 100.0);
+        state.BatteryCapacityMicroAH = state.BatteryCapacityAh * 10000000UL;
+    }
+    else
+    {
+        state.BatterySoc = 100;
+        state.BatteryCapacityAh = config.BatteryCapacityAh;
+        state.BatteryCapacityMicroAH = state.BatteryCapacityAh * 10000000UL;
+    }
 
-    // TODO: update state.BatteryCapacityAvailable based on recovered BatterySoc
-
+    // TODO: remove me...
     Serial.println(lastSoc);
 }
 
@@ -552,7 +567,7 @@ void processSerialInput()
 void updateClock()
 {
     // update the clock and print the system status
-    if (state.LastTick == 0 || (millis() - state.LastTick) >= 1000)
+    if (state.LastTick == 0 || (uint32_t)(millis() - state.LastTick) >= 1000)
     {
         updateDtm();
         printSystemStatus(getPrintTarget(), state, config);
@@ -567,7 +582,7 @@ void updateClock()
  */
 void readPowerSensors()
 {
-    if (state.LastReadTime == 0 || (millis() - state.LastReadTime) >= (1000 / config.UpdateFrequency))
+    if (state.LastReadTime == 0 || (uint32_t)(millis() - state.LastReadTime) >= (1000 / config.UpdateFrequency))
     {
         pushReading(volts, getVoltage(PIN_VOLTAGE));
         pushReading(amps_battery, getAmperage(PIN_BATT_AMPERAGE, config.AmpDigitalOffset1));
@@ -587,7 +602,7 @@ void readPowerSensors()
         state.LastReadTime = millis();
 
         // we only want to send the current values periodically, even though we refresh internally multiple times per second
-        if (state.LastWriteTime == 0 || ((millis() - state.LastWriteTime) >= (config.WriteInterval * 1000)))
+        if (state.LastWriteTime == 0 || ((uint32_t)(millis() - state.LastWriteTime) >= (config.WriteInterval * 1000)))
         {
             // only write if we have enough readings to average
             if (readings == config.AverageReadingCount)
@@ -606,7 +621,7 @@ void readPowerSensors()
  */
 void readEnvSensors()
 {
-    if (state.LastDhtReadTime == 0 || (millis() - state.LastDhtReadTime) >= ENV_WRITE_DELAY)
+    if (state.LastDhtReadTime == 0 || (uint32_t)(millis() - state.LastDhtReadTime) >= ENV_WRITE_DELAY)
     {
         readDht(PIN_DHT, &state.Temperature, &state.Humidity);
         printEnvironmentStatus(getPrintTarget(), state, config);
@@ -636,7 +651,7 @@ void checkHumidity()
     if (state.DehumCurrentStateSeconds < HUMIDITY_CHANGE_MIN_SECOND)
         return;
 
-    if (state.LastHumidityCheckTime == 0 || (millis() - state.LastHumidityCheckTime) > HUMIDITY_CHECK_DELAY)
+    if (state.LastHumidityCheckTime == 0 || (uint32_t)(millis() - state.LastHumidityCheckTime) > HUMIDITY_CHECK_DELAY)
     {
         uint8_t onThreshold = config.TargetHumidity + (config.HumidityHysterisis / 2);
         uint8_t offThreshold = config.TargetHumidity - (config.HumidityHysterisis / 2);
@@ -661,12 +676,67 @@ void checkHumidity()
  */
 void checkBattery()
 {
-    // TODO: update state.BatteryCapacityAvailable based on accumulated counters
-    // TODO: Add "time since last update" for battery capacity
-    // TODO: Add "milliamps charged since last update" for battery capacity tracking
-    // TODO: only check the battery every x number of milliseconds (maybe 5 seconds...)
-    // nothing to do right now, this is a placeholder for after the 
-    // capacity tracking is enabled
+    // lets not do anything until we have sufficient readings
+    if (readings < config.AverageReadingCount)
+        return;
+
+    // we want to synchronize the battery capacity tracking with the 
+    // reading averaging period.. this can be found by dividing 
+    // config.AverageReadingCount by config.UpdateFrequency
+    //
+    // for example:
+    // if AverageReadingCount is 10 and UpdateFrequency is 2
+    // 10/2 = 5
+    //
+    // This means we should update the battery capacity every 5 seconds..
+    //
+    if (state.LastBatteryCheckTime == 0 || (uint32_t)(millis() - state.LastBatteryCheckTime) >= (config.AverageReadingCount/config.UpdateFrequency) * 1000)
+    {
+        uint32_t updateMillis = millis();
+        uint32_t elapsed = updateMillis - state.LastBatteryCheckTime;
+        float factor = (elapsed / (float)3600000) * 10000000.0;
+        float avgReading = getAvgReading(amps_battery, config.AverageReadingCount);
+        int32_t adjust = round(factor * avgReading);
+
+        // Serial.print(F("e:"));
+        // Serial.println(elapsed);
+        // Serial.print(F("f:"));
+        // Serial.println(factor);
+        // Serial.print(F("avg:"));
+        // Serial.println(avgReading);
+        // Serial.print(F("adj:"));
+        // Serial.println(adjust);
+
+        // uint32_t adjust = (((float)((updateMillis - batteryLastUpdateTime) / 3600000000UL)) * 1000000.0) * getAvgReading(amps_battery, config.AverageReadingCount);
+
+        // Serial.println(adjust);
+
+        state.BatteryCapacityMicroAH += adjust;
+
+        if (state.BatteryCapacityMicroAH > config.BatteryCapacityAh * 10000000UL)
+            state.BatteryCapacityMicroAH = config.BatteryCapacityAh * 10000000UL;
+
+        state.BatteryCapacityAh = (float)state.BatteryCapacityMicroAH / 10000000.0;
+        state.BatterySoc = ((float)state.BatteryCapacityMicroAH / ((float)config.BatteryCapacityAh * 10000000.0)) * 100.0;
+
+        // Serial.print(F("uah:"));
+        // Serial.println(state.BatteryCapacityMicroAH);
+        // Serial.print(F("ah:"));
+        // Serial.println(state.BatteryCapacityAh);
+        // Serial.print(F("soc:"));
+        // Serial.println(state.BatterySoc);
+
+        state.LastBatteryCheckTime = updateMillis;
+
+        // TODO: store SOC to eeprom or SD periodically?
+        // TODO: auto power on AC
+        // TODO: add ending amps calculation
+    }
+}
+
+void writeSocToSd()
+{
+
 }
 
 /**
@@ -741,6 +811,8 @@ void checkPing()
  */
 void handleSerialCommand(const char *command)
 {
+    setPcConnected();
+
     bool fail = false;
 
     uint8_t offset = 0;
@@ -810,7 +882,9 @@ void handleSerialCommand(const char *command)
         else if (parseConfigValByte_p(command, &config.AcBackupPoint, STR_AC_BACKUP_POINT, offset)) { }
         else if (parseConfigValByte_p(command, &config.BatteryCapacityAh, STR_BATTERY_CAPACITY_AH, offset)) 
         { 
-            // TODO: on capacity update, reset state.BatteryCapacityAvailable and SOC
+            state.BatteryCapacityAh = config.BatteryCapacityAh;
+            state.BatteryCapacityMicroAH = state.BatteryCapacityAh * 10000000UL;
+            state.BatterySoc = 100;
         }
         else if (parseConfigValFloat_p(command, &config.BatteryEndingAmps, STR_BATTERY_ENDING_AMPS, offset)) { }
         else if (parseConfigValFloat_p(command, &config.BatteryAbsorbVoltage, STR_BATTERY_ABSORB_VOLTAGE, offset)) { }
@@ -839,16 +913,12 @@ void handleSerialCommand(const char *command)
     else if (startsWith_p(command, STR_RESUME, offset))
         state.EnableReadings = true;
 
-    else if (startsWith_p(command, STR_PING, offset))
-        state.LastPingSeconds = 0;
-
+    else if (startsWith_p(command, STR_PING, offset)) { }
     else if (startsWith_p(command, STR_PC, offset))
     {
         offset += strlen_P(STR_PC) + 1;
 
-        if (startsWith_p(command, STR_ON, offset))
-            setPcConnected();
-
+        if (startsWith_p(command, STR_ON, offset)) { }
         else if (startsWith_p(command, STR_OFF, offset))
             setPcDisconnected();
             
@@ -1044,7 +1114,8 @@ void updateDtm()
     *state.CurrentDtm = rtc.now();
 
     // TODO: is there a way to set an alarm on the RTC and then read it in software to see if it has triggered.. to ensure 1 second has actually passed vs using millis()
-    state.UptimeSeconds = millis() / 1000;
+    // state.UptimeSeconds = millis() / 1000;
+    state.UptimeSeconds += 1;
     state.DehumCurrentStateSeconds += 1;
     state.BatteryCurrentStateSeconds += 1;
     state.LastPingSeconds += 1;
@@ -1201,7 +1272,7 @@ void readLog()
             {
                 // at the end of each line, we check to see if we have exceeded the maximum
                 // allowed dump duration
-                if ((millis() - dumpStartTime) > MAX_DUMP_MS_PER_CYCLE)
+                if ((uint32_t)(millis() - dumpStartTime) > MAX_DUMP_MS_PER_CYCLE)
                 {
                     aborted = true;
                     break;
