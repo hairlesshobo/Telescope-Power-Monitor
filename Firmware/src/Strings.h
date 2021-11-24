@@ -50,6 +50,8 @@ const char str_Read[] PROGMEM = "READ";
 const char str_Hist[] PROGMEM = "HIST:";
 const char str_Close[] PROGMEM = "CLOSE";
 const char str_Open[] PROGMEM = "OPEN";
+const char str_LogFileName[] PROGMEM = "tpm.log";
+const char str_SocFileName[] PROGMEM = "soc.log";
 
 
 const char *const string_table[] PROGMEM = {
@@ -99,7 +101,9 @@ const char *const string_table[] PROGMEM = {
     str_Read,
     str_Hist,
     str_Close,
-    str_Open
+    str_Open,
+    str_LogFileName,
+    str_SocFileName
 };
 
 #define STR_AVERAGE_READING_COUNT string_table[0]
@@ -149,5 +153,7 @@ const char *const string_table[] PROGMEM = {
 #define STR_HIST string_table[44]
 #define STR_CLOSE string_table[45]
 #define STR_OPEN string_table[46]
+#define STR_LOG_FILE_NAME string_table[47]
+#define STR_SOC_FILE_NAME string_table[48]
 
 #endif // _STRINGS_H

@@ -46,6 +46,11 @@ struct State
     uint32_t LastBatteryCheckTime;
 
     /**
+     * @brief Number of milliseconds of time the SOC was stored to SD
+     */
+    uint32_t LastBatterySnapshotTime;
+
+    /**
      * @brief Most recent DTM as read from the RTC
      */
     DateTime* CurrentDtm;

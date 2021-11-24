@@ -1,4 +1,3 @@
-
 /**
  *  Telescope Power Monitor - Firmware
  * 
@@ -166,7 +165,7 @@
 #define BATTERY_CHANGE_MIN_SECOND 30
 
 #define MAX_PING_TIME 15
-#define MAX_DUMP_MS_PER_CYCLE 400
+#define MAX_DUMP_MS_PER_CYCLE 300
 
 #define SOC_STORE_FREQUENCY_SECONDS 60
 
@@ -281,6 +280,7 @@ State state = {
     0,              // LastDhtReadTime
     0,              // LastHumidityCheckTime
     0,              // LastBatteryCheckTime
+    0,              // LastBatterySnapshotTime
     new DateTime(), // CurrentDtm
     0,              // UptimeSeconds
     0.0,            // Temperature
@@ -312,7 +312,7 @@ File logFile;
 /**
  * @brief  Name of the log file on the SD card
  */
-char logFileName[8] = "dht.log";
+char logFileName[8]; // = "tpm.log";
 
 /**
  * @brief Realtime Clock Instance
@@ -343,7 +343,6 @@ void setup()
 {
     setupSerial();
     initConfig();
-    readLastSoc();
     allocateArrays();
     setupPins();
     setupRtc();
@@ -352,29 +351,22 @@ void setup()
 
     setupSdCard();
 
+    readLastSoc();
+
     setPcDisconnected();
     // setPcConnected();
 }
 
 void readLastSoc()
 {
-    uint8_t lastSoc = EEPROM.read(EEPROM.length()-1);
+    readSocFromSd();
 
-    if (lastSoc <= 100)
-    {
-        state.BatterySoc = lastSoc;
-        state.BatteryCapacityAh = config.BatteryCapacityAh * ((float)lastSoc / 100.0);
-        state.BatteryCapacityMicroAH = state.BatteryCapacityAh * 10000000UL;
-    }
-    else
+    if (state.BatteryCapacityMicroAH == 0)
     {
         state.BatterySoc = 100;
         state.BatteryCapacityAh = config.BatteryCapacityAh;
         state.BatteryCapacityMicroAH = state.BatteryCapacityAh * 10000000UL;
     }
-
-    // TODO: remove me...
-    Serial.println(lastSoc);
 }
 
 /**
@@ -397,6 +389,8 @@ void setupSdCard()
         writeLine_p(Serial, STR_SD_FAILED);
         panic();
     }
+
+    setLogFileName(false);
 }
 
 /**
@@ -728,15 +722,103 @@ void checkBattery()
 
         state.LastBatteryCheckTime = updateMillis;
 
-        // TODO: store SOC to eeprom or SD periodically?
         // TODO: auto power on AC
         // TODO: add ending amps calculation
+
+        writeSocToSd();
     }
 }
 
 void writeSocToSd()
 {
+    // our timer has elapsed.. lets store the current value
+    if ((uint32_t)(millis() - state.LastBatterySnapshotTime) >= (SOC_STORE_FREQUENCY_SECONDS * 1000))
+    {
+        bool needToCloseLogfile = (logFile == true);
 
+        if (needToCloseLogfile)
+            closeLogFile(false);
+
+        // switch to the soc.log file
+        setLogFileName(true);
+
+        // open the soc.log file
+        openLogFile(false, true);
+
+        // write the current SOC from state.BatteryCapacityMicroAH to the file
+        logFile.println(state.BatteryCapacityMicroAH);
+        logFile.flush();
+
+        // close the soc.log file
+        closeLogFile(false);
+
+        // revert back to the tpm.log file
+        setLogFileName(false);
+
+        if (needToCloseLogfile)
+            openLogFile(false, false);
+
+        state.LastBatterySnapshotTime = millis();
+    }
+}
+
+/**
+ * @brief Read the SOC from the SD card
+ * 
+ * @warning THIS SHOULD ONLY BE CALLED FROM setup() !!!
+ */
+void readSocFromSd()
+{
+    // switch to the soc.log file
+    setLogFileName(true);
+
+    // open the soc.log file
+    openLogFile(false, false);
+
+    // we only pull the SOC if there is a file
+    if (logFile)
+    {
+        logFile.seek(0);
+
+        uint8_t index = 0;
+
+        // clear the serial buffer
+        memset(serialInput, '\0', sizeof(serialInput));
+
+        while (logFile.available()) 
+        {
+            int character = logFile.read();
+
+            if (character == '\n')
+                break;
+
+            serialInput[index++] = (char)character;
+        }
+
+        char *ptr;
+
+        state.BatteryCapacityMicroAH = strtoul(serialInput, &ptr, 10);
+
+        if (state.BatteryCapacityMicroAH > config.BatteryCapacityAh * 10000000UL)
+            state.BatteryCapacityMicroAH = config.BatteryCapacityAh * 10000000UL;
+
+        state.BatteryCapacityAh = (float)state.BatteryCapacityMicroAH / 10000000.0;
+        state.BatterySoc = ((float)state.BatteryCapacityMicroAH / ((float)config.BatteryCapacityAh * 10000000.0)) * 100.0;
+
+        memset(serialInput, '\0', sizeof(serialInput));
+
+        // close the soc.log file
+        closeLogFile(false);
+    }
+
+    // revert back to the tpm.log file
+    setLogFileName(false);
+    
+    // We want to "start the clock" on the battery snapshot time immediately
+    // as opposed to writing the SOC immediately. Writing it on first cycle 
+    // makes no sense because we just read it in setup()
+    if (state.LastBatterySnapshotTime == 0)
+        state.LastBatterySnapshotTime = millis();
 }
 
 /**
@@ -1228,9 +1310,9 @@ void startLogDump()
 
     doReadLog = true;
 
-    closeLogFile();
+    closeLogFile(true);
 
-    openLogFile();
+    openLogFile(true, false);
 
     logFile.seek(0);
 }
@@ -1285,7 +1367,7 @@ void readLog()
         if (!aborted)
         {
             doReadLog = false;
-            closeLogFile();
+            closeLogFile(true);
 
             SD.remove(logFileName);
         }
@@ -1300,7 +1382,7 @@ void setPcDisconnected()
     state.PcConnected = false;
     doReadLog = false;
 
-    openLogFile();
+    openLogFile(true, false);
 }
 
 /**
@@ -1311,7 +1393,7 @@ void setPcConnected()
     state.LastPingSeconds = 0;
     state.PcConnected = true;
 
-    closeLogFile();
+    closeLogFile(true);
 }
 
 /**
@@ -1327,13 +1409,20 @@ void flushLog()
 /**
  * @brief Open the log file on the SD card for reading or writing
  */
-void openLogFile()
+void openLogFile(bool log, bool overwrite)
 {
     if (logFile)
         return;
     
-    printCommandHeader(Serial, state);
-    writeLine_p(Serial, STR_OPEN);
+    if (log == true)
+    {
+        printCommandHeader(Serial, state);
+        writeLine_p(Serial, STR_OPEN);
+    }
+
+    // remove the existing file if we have overwrite enabled
+    if (overwrite)
+        SD.remove(logFileName);
 
     logFile = SD.open(logFileName, FILE_WRITE);
 
@@ -1343,22 +1432,38 @@ void openLogFile()
         panic();
     }
 
-    printCommandHeader(logFile, state);
-    writeLine_p(logFile, STR_OPEN);
+    if (log == true)
+    {
+        printCommandHeader(logFile, state);
+        writeLine_p(logFile, STR_OPEN);
+    }
+}
+
+void setLogFileName(bool useSocLog)
+{
+    memset(logFileName, '\0', sizeof(logFileName));
+
+    if (useSocLog)
+        strcpy_P(logFileName, STR_SOC_FILE_NAME);
+    else
+        strcpy_P(logFileName, STR_LOG_FILE_NAME);
 }
 
 /**
  * @brief Close the log file
  */
-void closeLogFile()
+void closeLogFile(bool log)
 {
     if (logFile)
     {
-        printCommandHeader(Serial, state);
-        writeLine_p(Serial, STR_CLOSE);
+        if (log == true)
+        {
+            printCommandHeader(Serial, state);
+            writeLine_p(Serial, STR_CLOSE);
 
-        printCommandHeader(logFile, state);
-        writeLine_p(logFile, STR_CLOSE);
+            printCommandHeader(logFile, state);
+            writeLine_p(logFile, STR_CLOSE);
+        }
 
         logFile.close();
 
