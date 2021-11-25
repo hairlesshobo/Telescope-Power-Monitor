@@ -155,9 +155,6 @@ struct State
 
     /**
      * @brief Current battery state of charge.
-     * 
-     * This is stored to the EEPROM every 10%. This is done to minimize stress on the EEPROM
-     * while still allowing the SOC to be remembered (mostly) after a power loss.
      */
     float BatterySoc;
 
@@ -167,8 +164,9 @@ struct State
     float BatteryCapacityAh;
 
     /**
-     * @brief How much capacity is remaining in the battery, in microamps.. this is 
-     * for internal tracking and calculation purposes only
+     * @brief How much capacity is remaining in the battery, in microamps / 10.. this is 
+     * for internal tracking and calculation purposes only. It is stored to the SD card
+     * every 30 seconds (defined in Firmware.ino:SOC_STORE_FREQUENCY_SECONDS)
      */
     uint32_t BatteryCapacityMicroAH;
 };

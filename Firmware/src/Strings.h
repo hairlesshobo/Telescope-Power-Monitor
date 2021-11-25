@@ -17,6 +17,7 @@ const char str_HumidityCalibration[] PROGMEM = "HumidityCalibration";
 const char str_TargetHumidity[] PROGMEM = "TargetHumidity";
 const char str_HumidityHysterisis[] PROGMEM = "HumidityHysterisis";
 const char str_AcBackupPoint[] PROGMEM = "AcBackupPoint";
+const char str_AcRecoveredPoint[] PROGMEM = "AcRecoveredPoint";
 const char str_BatteryCapacityAh[] PROGMEM = "BatteryCapacityAh";
 const char str_BatteryEndingAmps[] PROGMEM = "BatteryEndingAmps";
 const char str_BatteryAbsorbVoltage[] PROGMEM = "BatteryAbsorbVoltage";
@@ -52,58 +53,67 @@ const char str_Close[] PROGMEM = "CLOSE";
 const char str_Open[] PROGMEM = "OPEN";
 const char str_LogFileName[] PROGMEM = "tpm.log";
 const char str_SocFileName[] PROGMEM = "soc.log";
+const char str_Reset[] PROGMEM = "RESET";
+const char str_Soc[] PROGMEM = "SOC";
+const char str_Eeprom[] PROGMEM = "EEPROM";
+const char str_Log[] PROGMEM = "LOG";
 
 
 const char *const string_table[] PROGMEM = {
-    str_AverageReadingCount,
-    str_UpdateFrequency,
-    str_WriteInterval,
-    str_VoltageCalibration,
-    str_R1Actual,
-    str_R2Actual,
-    str_AmpDigitalOffset1,
-    str_AmpDigitalOffset2,
-    str_AmpDigitalOffset3,
-    str_TemperatureCalibration,
-    str_HumidityCalibration,
-    str_TargetHumidity,
-    str_HumidityHysterisis,
-    str_AcBackupPoint,
-    str_BatteryCapacityAh,
-    str_BatteryEndingAmps,
-    str_BatteryAbsorbVoltage,
-    str_Config,
-    str_Version,
-    str_Save,
-    str_Clear,
-    str_Pause,
-    str_Resume,
-    str_Ok,
-    str_Fail,
-    str_Pwr,
-    str_On,
-    str_Off,
-    str_Telescope,
-    str_Aux1,
-    str_Dehum,
-    str_Ac,
-    str_Set,
-    str_Time,
-    str_WriteDefaultConfig,
-    str_SdFailed,
-    str_RtcFail,
-    str_RtcInit,
-    str_Cmd,
-    str_Stat,
-    str_Env,
-    str_Ping,
-    str_Pc,
-    str_Read,
-    str_Hist,
-    str_Close,
-    str_Open,
-    str_LogFileName,
-    str_SocFileName
+    str_AverageReadingCount,     // 0
+    str_UpdateFrequency,         // 1
+    str_WriteInterval,           // 2
+    str_VoltageCalibration,      // 3
+    str_R1Actual,                // 4
+    str_R2Actual,                // 5
+    str_AmpDigitalOffset1,       // 6
+    str_AmpDigitalOffset2,       // 7
+    str_AmpDigitalOffset3,       // 8
+    str_TemperatureCalibration,  // 9
+    str_HumidityCalibration,     // 10
+    str_TargetHumidity,          // 11
+    str_HumidityHysterisis,      // 12
+    str_AcBackupPoint,           // 13
+    str_AcRecoveredPoint,        // 14
+    str_BatteryCapacityAh,       // 15
+    str_BatteryEndingAmps,       // 16
+    str_BatteryAbsorbVoltage,    // 17
+    str_Config,                  // 18
+    str_Version,                 // 19
+    str_Save,                    // 20
+    str_Clear,                   // 21
+    str_Pause,                   // 22
+    str_Resume,                  // 23
+    str_Ok,                      // 24
+    str_Fail,                    // 25
+    str_Pwr,                     // 26
+    str_On,                      // 27
+    str_Off,                     // 28
+    str_Telescope,               // 29
+    str_Aux1,                    // 30
+    str_Dehum,                   // 31
+    str_Ac,                      // 32
+    str_Set,                     // 33
+    str_Time,                    // 34
+    str_WriteDefaultConfig,      // 35
+    str_SdFailed,                // 36
+    str_RtcFail,                 // 37
+    str_RtcInit,                 // 38
+    str_Cmd,                     // 39
+    str_Stat,                    // 40
+    str_Env,                     // 41
+    str_Ping,                    // 42
+    str_Pc,                      // 43
+    str_Read,                    // 44
+    str_Hist,                    // 45
+    str_Close,                   // 46
+    str_Open,                    // 47
+    str_LogFileName,             // 48
+    str_SocFileName,             // 49
+    str_Reset,                   // 50
+    str_Soc,                     // 51
+    str_Eeprom,                  // 52
+    str_Log                      // 53
 };
 
 #define STR_AVERAGE_READING_COUNT string_table[0]
@@ -120,40 +130,45 @@ const char *const string_table[] PROGMEM = {
 #define STR_TARGET_HUMIDITY string_table[11]
 #define STR_HUMIDITY_HYSTERISIS string_table[12]
 #define STR_AC_BACKUP_POINT string_table[13]
-#define STR_BATTERY_CAPACITY_AH string_table[14]
-#define STR_BATTERY_ENDING_AMPS string_table[15]
-#define STR_BATTERY_ABSORB_VOLTAGE string_table[16]
-#define STR_CONFIG string_table[17]
-#define STR_VERSION string_table[18]
-#define STR_SAVE string_table[19]
-#define STR_CLEAR string_table[20]
-#define STR_PAUSE string_table[21]
-#define STR_RESUME string_table[22]
-#define STR_OK string_table[23]
-#define STR_FAIL string_table[24]
-#define STR_PWR string_table[25]
-#define STR_ON string_table[26]
-#define STR_OFF string_table[27]
-#define STR_TELESCOPE string_table[28]
-#define STR_AUX1 string_table[29]
-#define STR_DEHUM string_table[30]
-#define STR_AC string_table[31]
-#define STR_SET string_table[32]
-#define STR_TIME string_table[33]
-#define STR_WRITE_DEFAULT_CONFIG string_table[34]
-#define STR_SD_FAILED string_table[35]
-#define STR_RTC_FAIL string_table[36]
-#define STR_RTC_INIT string_table[37]
-#define STR_CMD string_table[38]
-#define STR_STAT string_table[39]
-#define STR_ENV string_table[40]
-#define STR_PING string_table[41]
-#define STR_PC string_table[42]
-#define STR_READ string_table[43]
-#define STR_HIST string_table[44]
-#define STR_CLOSE string_table[45]
-#define STR_OPEN string_table[46]
-#define STR_LOG_FILE_NAME string_table[47]
-#define STR_SOC_FILE_NAME string_table[48]
+#define STR_AC_RECOVERED_POINT string_table[14]
+#define STR_BATTERY_CAPACITY_AH string_table[15]
+#define STR_BATTERY_ENDING_AMPS string_table[16]
+#define STR_BATTERY_ABSORB_VOLTAGE string_table[17]
+#define STR_CONFIG string_table[18]
+#define STR_VERSION string_table[19]
+#define STR_SAVE string_table[20]
+#define STR_CLEAR string_table[21]
+#define STR_PAUSE string_table[22]
+#define STR_RESUME string_table[23]
+#define STR_OK string_table[24]
+#define STR_FAIL string_table[25]
+#define STR_PWR string_table[26]
+#define STR_ON string_table[27]
+#define STR_OFF string_table[28]
+#define STR_TELESCOPE string_table[29]
+#define STR_AUX1 string_table[30]
+#define STR_DEHUM string_table[31]
+#define STR_AC string_table[32]
+#define STR_SET string_table[33]
+#define STR_TIME string_table[34]
+#define STR_WRITE_DEFAULT_CONFIG string_table[35]
+#define STR_SD_FAILED string_table[36]
+#define STR_RTC_FAIL string_table[37]
+#define STR_RTC_INIT string_table[38]
+#define STR_CMD string_table[39]
+#define STR_STAT string_table[40]
+#define STR_ENV string_table[41]
+#define STR_PING string_table[42]
+#define STR_PC string_table[43]
+#define STR_READ string_table[44]
+#define STR_HIST string_table[45]
+#define STR_CLOSE string_table[46]
+#define STR_OPEN string_table[47]
+#define STR_LOG_FILE_NAME string_table[48]
+#define STR_SOC_FILE_NAME string_table[49]
+#define STR_RESET string_table[50]
+#define STR_SOC string_table[51]
+#define STR_EEPROM string_table[52]
+#define STR_LOG string_table[53]
 
 #endif // _STRINGS_H

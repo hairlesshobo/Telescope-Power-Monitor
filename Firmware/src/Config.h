@@ -102,6 +102,11 @@ struct ConfigObject
   uint8_t AcBackupPoint;
 
   /**
+   * @brief Battery capacity set point above which the AC Power supply will automatically disconnect
+   */
+  uint8_t AcRecoveredPoint;
+
+  /**
    * @brief Capacity, in amp hours, that this battery (bank) holds
    */
   uint8_t BatteryCapacityAh;

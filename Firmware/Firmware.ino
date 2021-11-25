@@ -18,14 +18,8 @@
  *  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
-// TODO:
-// RESET SOC
-// RESET CONFIG
-// RESET BOARD
-// RESET LOG
-
 // Output Format:
-// <ISO_DTM>|<UptimeSeconds>|STAT|<BytesFreeMem>|<DehumEnabled>|<TelescopeOutState>|<DehumOutState>|<Aux1OutState>|<AcInState>|<BatteryCurrentStateSeconds>|<DehumCurrentStateSeconds>|<LastPingSeconds>
+// <ISO_DTM>|<UptimeSeconds>|STAT|<BytesFreeMem>|<DehumEnabled>|<TelescopeOutState>|<DehumOutState>|<Aux1OutState>|<AcInState>|<BatteryCurrentStateSeconds>|<DehumCurrentStateSeconds>|<PcConnected>|<LastPingSeconds>
 // <ISO_DTM>|<UptimeSeconds>|PWR|<Voltage>|<BatteryAmps>|<LoadAmps>|<SolarAmps>|<AcAmps>|<BatterySoc>|<BatteryCapacityAh>
 // <ISO_DTM>|<UptimeSeconds>|ENV|<CurrentTemperatureC>|<CurrentHumidityPercent>
 // <ISO_DTM>|<UptimeSeconds>|VERSION|<FirmwareVersion>
@@ -69,12 +63,18 @@
 // SET TargetHumidity <val> - TgHum -- 
 // SET HumidityHysterisis <val> - HumHys -- 
 // SET AcBackupPoint <val> - ACBP --
+// SET AcRecoveredPoint <val> - ACBP --
 // SET BatteryCapacityAh <val> -  -- 
 // SET BatteryEndingAmps <val> -  -- 
 // SET BatteryAbsorbVoltage <val> -  -- 
 // SET TIME <val in format yyyy-MM-ddTHH:mm:ss>
-// ENABLE DEHUM
-// DISABLE DEHUM
+// SAVE - Save the current config to the EEPROM
+// RESET CONFIG -- Re-read the config from the EEPROM
+// RESET EEPROM -- Reset the EEPROM to default values
+// RESET LOG -- Clear the log file on the SD card
+// RESET SOC -- Reset the SOC to 100%
+// DEHUM ON
+// DEHUM OFF
 // PWR ON TELESCOPE
 // PWR ON AUX1
 // PWR ON DEHUM
@@ -83,8 +83,6 @@
 // PWR OFF AUX1
 // PWR OFF DEHUM
 // PWR OFF AC
-// SAVE - Save the current config to the EEPROM
-// CLEAR - Reset the EEPROM to the default values 
 // PAUSE - Pause sensor readings
 // RESUME - Resume sensor readings
 // PING - Notify the controller that the PC is still alive
@@ -107,7 +105,7 @@
 //   TargetHumidity[14]           => TgHum[5]   .. 18 bytes saved
 //   HumidityHysterisis[18]       => HumHys[6]  .. 24 bytes saved
 //   AcBackupPoint[13]            => ACBP[4]    .. 18 bytes saved
-
+//   AcRecoveredPoint[16]         => ACRP[4]    .. 28 bytes saved
 //   BatteryCapacityAh[17]        => BCA[3]     .. 28 bytes saved
 //   BatteryEndingAmps[17]        => BEA[3]     .. 28 bytes saved
 //   BatteryAbsorbVoltage[20]     => BAV[3]     .. 34 bytes saved
@@ -131,6 +129,13 @@
 //   RESUME[6]  => RSM[3]  ..  6 bytes saved
 //
 //   SUBTOTAL: 30 bytes progmem saved if implemented
+
+// Possible to-do items:
+//  config validation?
+//  store AC backup state to SD?
+
+// To strip if necessary to free more code space:
+//  pause/resume functionality
 
 #pragma region Includes
 //========================================================================
@@ -167,7 +172,7 @@
 #define MAX_PING_TIME 15
 #define MAX_DUMP_MS_PER_CYCLE 300
 
-#define SOC_STORE_FREQUENCY_SECONDS 60
+#define SOC_STORE_FREQUENCY_SECONDS 30
 
 // #define OVERWRITE_EEPROM
 
@@ -181,7 +186,6 @@
 const char VERSION[] = "2.0";
 
 const uint8_t mVperAmp = 100; // use 100 for 20A Module and 66 for 30A Module
-
 const uint16_t ACSoffset = 2500;
 
 // Pin Definitions
@@ -312,7 +316,7 @@ File logFile;
 /**
  * @brief  Name of the log file on the SD card
  */
-char logFileName[8]; // = "tpm.log";
+char logFileName[8];
 
 /**
  * @brief Realtime Clock Instance
@@ -346,15 +350,12 @@ void setup()
     allocateArrays();
     setupPins();
     setupRtc();
-
-    updateDtm();
-
     setupSdCard();
-
     readLastSoc();
 
     setPcDisconnected();
-    // setPcConnected();
+
+    setPulse(6, 75);
 }
 
 void readLastSoc()
@@ -362,11 +363,7 @@ void readLastSoc()
     readSocFromSd();
 
     if (state.BatteryCapacityMicroAH == 0)
-    {
-        state.BatterySoc = 100;
-        state.BatteryCapacityAh = config.BatteryCapacityAh;
-        state.BatteryCapacityMicroAH = state.BatteryCapacityAh * 10000000UL;
-    }
+        resetSoc();
 }
 
 /**
@@ -425,6 +422,7 @@ void setupRtc()
     }
 
     rtc.start();
+    updateDtm();
 }
 
 /**
@@ -493,6 +491,7 @@ void loop()
     readDehumButton();
     readTelescopeButton();
     checkPing();
+    pulseLed();
     readLog();
 }
 
@@ -692,38 +691,37 @@ void checkBattery()
         float avgReading = getAvgReading(amps_battery, config.AverageReadingCount);
         int32_t adjust = round(factor * avgReading);
 
-        // Serial.print(F("e:"));
-        // Serial.println(elapsed);
-        // Serial.print(F("f:"));
-        // Serial.println(factor);
-        // Serial.print(F("avg:"));
-        // Serial.println(avgReading);
-        // Serial.print(F("adj:"));
-        // Serial.println(adjust);
-
-        // uint32_t adjust = (((float)((updateMillis - batteryLastUpdateTime) / 3600000000UL)) * 1000000.0) * getAvgReading(amps_battery, config.AverageReadingCount);
-
-        // Serial.println(adjust);
-
         state.BatteryCapacityMicroAH += adjust;
 
+        bool forceFull = false;
+
         if (state.BatteryCapacityMicroAH > config.BatteryCapacityAh * 10000000UL)
+            forceFull = true;
+
+        // if we reaching the ending amps, then we can reset SOC to 100%
+        if (state.BatteryAmp > 0 && state.BatteryAmp <= config.BatteryEndingAmps && state.Volt >= config.BatteryAbsorbVoltage)
+            forceFull = true;
+
+        if (forceFull)
             state.BatteryCapacityMicroAH = config.BatteryCapacityAh * 10000000UL;
 
         state.BatteryCapacityAh = (float)state.BatteryCapacityMicroAH / 10000000.0;
         state.BatterySoc = ((float)state.BatteryCapacityMicroAH / ((float)config.BatteryCapacityAh * 10000000.0)) * 100.0;
-
-        // Serial.print(F("uah:"));
-        // Serial.println(state.BatteryCapacityMicroAH);
-        // Serial.print(F("ah:"));
-        // Serial.println(state.BatteryCapacityAh);
-        // Serial.print(F("soc:"));
-        // Serial.println(state.BatterySoc);
-
         state.LastBatteryCheckTime = updateMillis;
 
-        // TODO: auto power on AC
-        // TODO: add ending amps calculation
+        if (state.BatteryCurrentStateSeconds > BATTERY_CHANGE_MIN_SECOND)
+        {
+            if (!state.AcInState && state.BatterySoc < config.AcBackupPoint)
+            {
+                setRelayState(&state.AcInState, PIN_AC_INPUT_RELAY, true);
+                state.BatteryCurrentStateSeconds = 0;
+            }
+            else if (state.AcInState && state.BatterySoc >= config.AcRecoveredPoint)
+            {
+                setRelayState(&state.AcInState, PIN_AC_INPUT_RELAY, false);
+                state.BatteryCurrentStateSeconds = 0;
+            }
+        }
 
         writeSocToSd();
     }
@@ -759,6 +757,8 @@ void writeSocToSd()
             openLogFile(false, false);
 
         state.LastBatterySnapshotTime = millis();
+
+        setPulse(4, 150);
     }
 }
 
@@ -962,12 +962,9 @@ void handleSerialCommand(const char *command)
         else if (parseConfigValByte_p(command, &config.TargetHumidity, STR_TARGET_HUMIDITY, offset)) { }
         else if (parseConfigValByte_p(command, &config.HumidityHysterisis, STR_HUMIDITY_HYSTERISIS, offset)) { }
         else if (parseConfigValByte_p(command, &config.AcBackupPoint, STR_AC_BACKUP_POINT, offset)) { }
+        else if (parseConfigValByte_p(command, &config.AcRecoveredPoint, STR_AC_RECOVERED_POINT, offset)) { }
         else if (parseConfigValByte_p(command, &config.BatteryCapacityAh, STR_BATTERY_CAPACITY_AH, offset)) 
-        { 
-            state.BatteryCapacityAh = config.BatteryCapacityAh;
-            state.BatteryCapacityMicroAH = state.BatteryCapacityAh * 10000000UL;
-            state.BatterySoc = 100;
-        }
+            resetSoc();
         else if (parseConfigValFloat_p(command, &config.BatteryEndingAmps, STR_BATTERY_ENDING_AMPS, offset)) { }
         else if (parseConfigValFloat_p(command, &config.BatteryAbsorbVoltage, STR_BATTERY_ABSORB_VOLTAGE, offset)) { }
         else
@@ -986,9 +983,6 @@ void handleSerialCommand(const char *command)
     else if (startsWith_p(command, STR_SAVE, offset))
         writeConfig();
 
-    else if (startsWith_p(command, STR_CLEAR, offset))
-        writeDefaultConfig();
-
     else if (startsWith_p(command, STR_PAUSE, offset))
         state.EnableReadings = false;
 
@@ -1004,6 +998,42 @@ void handleSerialCommand(const char *command)
         else if (startsWith_p(command, STR_OFF, offset))
             setPcDisconnected();
             
+        else
+            fail = true;
+    }
+    else if (startsWith_p(command, STR_DEHUM, offset))
+    {
+        offset += strlen_P(STR_DEHUM) + 1;
+
+        if (startsWith_p(command, STR_ON, offset))
+            setHumidityControl(true);
+        else if (startsWith_p(command, STR_OFF, offset))
+             setHumidityControl(false);
+        else
+            fail = true;
+    }
+    else if (startsWith_p(command, STR_RESET, offset))
+    {
+        offset += strlen_P(STR_RESET) + 1;
+
+        if (startsWith_p(command, STR_SOC, offset)) 
+            resetSoc();
+        else if (startsWith_p(command, STR_CONFIG, offset)) 
+            readConfig();
+        else if (startsWith_p(command, STR_EEPROM, offset)) 
+            writeDefaultConfig();
+        else if (startsWith_p(command, STR_LOG, offset)) 
+        { 
+            bool needToReopen = (logFile == true);
+
+            if (needToReopen)
+                closeLogFile(true);
+
+            SD.remove(logFileName);
+
+            if (needToReopen)
+                openLogFile(true, false);
+        }
         else
             fail = true;
     }
@@ -1308,13 +1338,11 @@ void startLogDump()
 {
     setPcConnected();
 
-    doReadLog = true;
-
-    closeLogFile(true);
-
-    openLogFile(true, false);
+    openLogFile(false, false);
 
     logFile.seek(0);
+
+    doReadLog = true;
 }
 
 /**
@@ -1380,7 +1408,12 @@ void readLog()
 void setPcDisconnected()
 {
     state.PcConnected = false;
-    doReadLog = false;
+
+    if (doReadLog)
+    {
+        doReadLog = false;
+        closeLogFile(false);
+    }
 
     openLogFile(true, false);
 }
@@ -1473,3 +1506,48 @@ void closeLogFile(bool log)
 
 //========================================================================
 #pragma endregion
+
+byte previousLedState;
+byte doPulse = 0;
+byte currentPulseCount = 0;
+byte targetPulseCount = 0;
+byte pulseDelay = 100;
+uint32_t lastPulseTime = 0;
+
+void setPulse(byte count, byte dly)
+{
+    doPulse = 1;
+    targetPulseCount = count;
+    currentPulseCount = 0;
+    pulseDelay = dly;
+    previousLedState = state.DehumEnabled;
+    lastPulseTime = millis();
+}
+
+void pulseLed()
+{
+    if (doPulse == 0)
+        return;
+
+    if ((uint32_t)(millis() - lastPulseTime) > pulseDelay)
+    {
+        previousLedState = !previousLedState;
+        digitalWrite(PIN_DEHUMIDIFIER_ENABLED_LED, previousLedState);
+        lastPulseTime = millis();
+
+        currentPulseCount++;
+
+        if (targetPulseCount == currentPulseCount)
+        {
+            doPulse = 0;
+            digitalWrite(PIN_DEHUMIDIFIER_ENABLED_LED, state.DehumEnabled);
+        }
+    }
+}
+
+void resetSoc()
+{
+    state.BatterySoc = 100;
+    state.BatteryCapacityAh = config.BatteryCapacityAh;
+    state.BatteryCapacityMicroAH = state.BatteryCapacityAh * 10000000UL;
+}
