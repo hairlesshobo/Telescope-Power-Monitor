@@ -12,6 +12,7 @@ namespace FoxHollow.TelescopePowerMonitor.DeviceClient
 {
     public delegate void TpmLogLineReceived(string line);
     public delegate void TpmPowerChanged(PowerInfo powerInfo);
+    public delegate void TpmEnvironmentChanged(EnvironmentInfo environmentInfo);
 
     public class TpmClient : INotifyPropertyChanged
     {
@@ -21,6 +22,7 @@ namespace FoxHollow.TelescopePowerMonitor.DeviceClient
 
         public event TpmLogLineReceived OnLogLine;
         public event TpmPowerChanged OnPowerChanged;
+        public event TpmEnvironmentChanged OnEnvironmentChanged;
         public event PropertyChangedEventHandler PropertyChanged;
 
         public DateTimeOffset ConnectDtm { get; private set; }
@@ -40,11 +42,13 @@ namespace FoxHollow.TelescopePowerMonitor.DeviceClient
         public int UptimeSeconds { get; private set; } = 0;
 
         public PowerInfo Power { get; }
+        public EnvironmentInfo Environment { get; }
         public EEPROM DeviceConfig { get; }
 
         public TpmClient()
         {
             this.Power = new PowerInfo();
+            this.Environment = new EnvironmentInfo();
             this.DeviceConfig = new EEPROM();
 
             this.OnLogLine += delegate { };
@@ -167,22 +171,14 @@ namespace FoxHollow.TelescopePowerMonitor.DeviceClient
 
                     OnLogLine(line);
 
-                    string[] lineParts = line.Split('|');
+                    if (this.Power.ParseLogLine(line))
+                        OnPowerChanged(this.Power);
 
-                    if (lineParts.Length >= 3)
-                    {
-                        string logType = lineParts[2];
+                    else if (this.Environment.ParseLogLine(line))
+                        OnEnvironmentChanged(this.Environment);
 
-                        if (logType.Equals("PWR", StringComparison.InvariantCultureIgnoreCase))
-                        {
-                            this.Power.ParseLogLine(line);
-
-                            if (this.Power.ParseSuccess)
-                                OnPowerChanged(this.Power);
-                        }
-                        else if (logType.Equals("CONFIG", StringComparison.InvariantCultureIgnoreCase))
-                            this.DeviceConfig.ParseLogLine(line);
-                    }
+                    else if (this.DeviceConfig.ParseLogLine(line)) { }
+                        
                 }
             }
             catch (Exception ex)

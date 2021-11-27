@@ -8,7 +8,7 @@ namespace FoxHollow.TelescopePowerMonitor.DeviceClient
     {
         DateTimeOffset LastReadDtm { get; }
         int LastReadUptime { get; }
-        bool ParseSuccess { get; }
+        //bool ParseSuccess { get; }
 
         //void ParseLogLine(string inputLine);
     }

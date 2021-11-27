@@ -5,6 +5,7 @@
     <GeneratePackageOnBuild>True</GeneratePackageOnBuild>
     <Authors>hairlesshobo</Authors>
     <PackageId>FoxHollow.TelescopePowerMonitor.DeviceClient</PackageId>
+    <RootNamespace>FoxHollow.TelescopePowerMonitor.DeviceClient</RootNamespace>
   </PropertyGroup>
 
 </Project>

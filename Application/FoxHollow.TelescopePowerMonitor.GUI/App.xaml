@@ -1,8 +1,8 @@
 ﻿<Application x:Class="BatteryMonitorGUI.App"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:local="clr-namespace:BatteryMonitorGUI"
-             xmlns:properties="clr-namespace:BatteryMonitorGUI.Properties"
+             xmlns:local="clr-namespace:FoxHollow.TelescopePowerMonitor.GUI"
+             xmlns:properties="clr-namespace:FoxHollow.TelescopePowerMonitor.GUI.Properties"
              StartupUri="MainWindow.xaml">
     <Application.Resources>
         <properties:Settings x:Key="Settings" />

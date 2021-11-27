@@ -11,9 +11,9 @@ using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
-using static BatteryMonitorGUI.Properties.Settings;
+using static FoxHollow.TelescopePowerMonitor.GUI.Properties.Settings;
 
-namespace BatteryMonitorGUI
+namespace FoxHollow.TelescopePowerMonitor.GUI
 {
     /// <summary>
     /// Interaction logic for MainWindow.xaml
@@ -25,9 +25,12 @@ namespace BatteryMonitorGUI
         public MainWindow()
         { 
             InitializeComponent();
+
             tpmClient = new TpmClient();
+
             tpmClient.OnLogLine += AppendLog;
             tpmClient.OnPowerChanged += UpdatePowerInfo;
+            tpmClient.OnEnvironmentChanged += UpdateEnvironmentInfo;
         }
 
         private void Window_Loaded(object sender, RoutedEventArgs e)
@@ -40,10 +43,10 @@ namespace BatteryMonitorGUI
             mainWindow.Topmost = Default.alwaysOnTop;
 
             statusBar_SetDisconnected();
-            refreshPorts();
+            RefreshPorts();
             ClearStatusValues();
 
-            setLastComPort();
+            SetLastComPort();
 
             attachValueWatchers();
         }
@@ -97,7 +100,7 @@ namespace BatteryMonitorGUI
             Default.Save();
         }
 
-        private void setLastComPort()
+        private void SetLastComPort()
         {
             if (Default.lastComPort != "")
             {
@@ -114,12 +117,10 @@ namespace BatteryMonitorGUI
             }
         }
 
-        private void refreshPortsButton_Click(object sender, RoutedEventArgs e)
-        {
-            refreshPorts();
-        }
+        private void RefreshPortsButton_Click(object sender, RoutedEventArgs e)
+            => RefreshPorts();
 
-        private void refreshPorts()
+        private void RefreshPorts()
         {
             comPortList.ItemsSource = new List<string>() { "Loading.." };
 
@@ -128,7 +129,7 @@ namespace BatteryMonitorGUI
             comPortList.ItemsSource = comPorts;
         }
 
-        private void connectButton_Click(object sender, RoutedEventArgs e)
+        private void ConnectButton_Click(object sender, RoutedEventArgs e)
         {
             if (!tpmClient.Connected)
             {
@@ -224,15 +225,38 @@ namespace BatteryMonitorGUI
 
         public void ClearStatusValues()
         {
-            voltageAvgBlock.Text = "---- v";
-            voltageMinBlock.Text = "---- v";
-            voltageMaxBlock.Text = "---- v";
+            voltageAvgBlock.Text = Formatting.Empty;
+            voltageMinBlock.Text = Formatting.Empty;
+            voltageMaxBlock.Text = Formatting.Empty;
 
-            amperageAvgBlock.Text = "---- A";
-            amperageMaxBlock.Text = "---- A";
-            amperageMinBlock.Text = "---- A";
+            batteryAmperageAvgBlock.Text = Formatting.Empty;
+            batteryAmperageMaxBlock.Text = Formatting.Empty;
+            batteryAmperageMinBlock.Text = Formatting.Empty;
 
-            uptimeStatusBlock.Text = "---";
+            temperageAvgBlock.Text = Formatting.Empty;
+            temperageMinBlock.Text = Formatting.Empty;
+            temperageMaxBlock.Text = Formatting.Empty;
+
+            humidityAvgBlock.Text = Formatting.Empty;
+            humidityMinBlock.Text = Formatting.Empty;
+            humidityMaxBlock.Text = Formatting.Empty;
+
+            loadAmperageAvgBlock.Text = Formatting.Empty;
+            loadAmperageMaxBlock.Text = Formatting.Empty;
+            loadAmperageMinBlock.Text = Formatting.Empty;
+
+            solarAmperageAvgBlock.Text = Formatting.Empty;
+            solarAmperageMaxBlock.Text = Formatting.Empty;
+            solarAmperageMinBlock.Text = Formatting.Empty;
+
+            acAmperageAvgBlock.Text = Formatting.Empty;
+            acAmperageMaxBlock.Text = Formatting.Empty;
+            acAmperageMinBlock.Text = Formatting.Empty;
+
+
+            uptimeStatusBlock.Text = Formatting.Empty;
+
+            // TODO: Add other crap here
 
             uptimeStatusBlock.Foreground = Brushes.Gray;
 
@@ -250,21 +274,67 @@ namespace BatteryMonitorGUI
 
             //uptimeStatusBlock.Text = FormatUptime(info.UptimeSeconds);
 
-            voltageAvgBlock.Text = info.Voltage.Current.ToString("0.00") + " v";
-            voltageMinBlock.Text = info.Voltage.Minimum.ToString("0.00") + " v";
-            voltageMaxBlock.Text = info.Voltage.Maximum.ToString("0.00") + " v";
+            voltageAvgBlock.Text = Formatting.FormatVoltage(info.Voltage.Current);
+            voltageMinBlock.Text = Formatting.FormatVoltage(info.Voltage.Minimum);
+            voltageMaxBlock.Text = Formatting.FormatVoltage(info.Voltage.Maximum);
 
-            amperageAvgBlock.Text = info.BatteryAmperage.Current.ToString("0.00") + " A";
-            amperageMinBlock.Text = info.BatteryAmperage.Minimum.ToString("0.00") + " A";
-            amperageMaxBlock.Text = info.BatteryAmperage.Maximum.ToString("0.00") + " A";
+            batteryAmperageAvgBlock.Text = Formatting.FormatAmperage(info.BatteryAmperage.Current);
+            batteryAmperageMinBlock.Text = Formatting.FormatAmperage(info.BatteryAmperage.Minimum);
+            batteryAmperageMaxBlock.Text = Formatting.FormatAmperage(info.BatteryAmperage.Maximum);
+
+            loadAmperageAvgBlock.Text = Formatting.FormatAmperage(info.LoadAmperage.Current);
+            loadAmperageMaxBlock.Text = Formatting.FormatAmperage(info.LoadAmperage.Minimum);
+            loadAmperageMinBlock.Text = Formatting.FormatAmperage(info.LoadAmperage.Maximum);
+            
+            solarAmperageAvgBlock.Text = Formatting.FormatAmperage(info.SolarAmperage.Current);
+            solarAmperageMaxBlock.Text = Formatting.FormatAmperage(info.SolarAmperage.Minimum);
+            solarAmperageMinBlock.Text = Formatting.FormatAmperage(info.SolarAmperage.Maximum);
+
+            acAmperageAvgBlock.Text = Formatting.FormatAmperage(info.AcAmperage.Current);
+            acAmperageMaxBlock.Text = Formatting.FormatAmperage(info.AcAmperage.Minimum);
+            acAmperageMinBlock.Text = Formatting.FormatAmperage(info.AcAmperage.Maximum);
+
+            batterySocAvgBlock.Text = Formatting.FormatPercentage(info.BatterySoc.Current);
+            batterySocMinBlock.Text = Formatting.FormatPercentage(info.BatterySoc.Minimum);
+            batterySocMaxBlock.Text = Formatting.FormatPercentage(info.BatterySoc.Maximum);
 
             setVoltageColor(voltageAvgBlock, info.Voltage.Current);
             setVoltageColor(voltageMinBlock, info.Voltage.Minimum);
             setVoltageColor(voltageMaxBlock, info.Voltage.Maximum);
 
-            setAmperageColor(amperageAvgBlock, info.BatteryAmperage.Current);
-            setAmperageColor(amperageMinBlock, info.BatteryAmperage.Minimum);
-            setAmperageColor(amperageMaxBlock, info.BatteryAmperage.Maximum);
+            setAmperageColor(batteryAmperageAvgBlock, info.BatteryAmperage.Current);
+            setAmperageColor(batteryAmperageMinBlock, info.BatteryAmperage.Minimum);
+            setAmperageColor(batteryAmperageMaxBlock, info.BatteryAmperage.Maximum);
+        }
+
+        public void UpdateEnvironmentInfo(EnvironmentInfo info)
+        {
+            if (!Dispatcher.CheckAccess())
+            {
+                this.Dispatcher.Invoke(() => UpdateEnvironmentInfo(info));
+
+                return;
+            }
+
+            temperageAvgBlock.Text = Formatting.FormatTemperature(info.Temperature.Current);
+            temperageMinBlock.Text = Formatting.FormatTemperature(info.Temperature.Minimum);
+            temperageMaxBlock.Text = Formatting.FormatTemperature(info.Temperature.Maximum);
+
+            humidityAvgBlock.Text = Formatting.FormatPercentage(info.Humidity.Current);
+            humidityMinBlock.Text = Formatting.FormatPercentage(info.Humidity.Minimum);
+            humidityMaxBlock.Text = Formatting.FormatPercentage(info.Humidity.Maximum);
+
+            //amperageAvgBlock.Text = info.BatteryAmperage.Current.ToString("0.00") + " A";
+            //amperageMinBlock.Text = info.BatteryAmperage.Minimum.ToString("0.00") + " A";
+            //amperageMaxBlock.Text = info.BatteryAmperage.Maximum.ToString("0.00") + " A";
+
+            //setVoltageColor(voltageAvgBlock, info.Voltage.Current);
+            //setVoltageColor(voltageMinBlock, info.Voltage.Minimum);
+            //setVoltageColor(voltageMaxBlock, info.Voltage.Maximum);
+
+            //setAmperageColor(amperageAvgBlock, info.BatteryAmperage.Current);
+            //setAmperageColor(amperageMinBlock, info.BatteryAmperage.Minimum);
+            //setAmperageColor(amperageMaxBlock, info.BatteryAmperage.Maximum);
         }
 
         private void SetDisplayColors(Brush color)
@@ -274,9 +344,28 @@ namespace BatteryMonitorGUI
                 voltageAvgBlock,
                 voltageMinBlock,
                 voltageMaxBlock,
-                amperageAvgBlock,
-                amperageMaxBlock,
-                amperageMinBlock
+                batteryAmperageAvgBlock,
+                batteryAmperageMaxBlock,
+                batteryAmperageMinBlock,
+                loadAmperageAvgBlock,
+                loadAmperageMaxBlock,
+                loadAmperageMinBlock,
+                solarAmperageAvgBlock,
+                solarAmperageMaxBlock,
+                solarAmperageMinBlock,
+                acAmperageAvgBlock,
+                acAmperageMaxBlock,
+                acAmperageMinBlock,
+                temperageAvgBlock,
+                temperageMinBlock,
+                temperageMaxBlock,
+                humidityAvgBlock,
+                humidityMinBlock,
+                humidityMaxBlock,
+                batterySocAvgBlock,
+                batterySocMinBlock,
+                batterySocMaxBlock
+
             };
 
             foreach (TextBlock textBlock in textBlocks)

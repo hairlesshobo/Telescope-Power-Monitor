@@ -1,14 +1,15 @@
-﻿<Window x:Name="mainWindow" x:Class="BatteryMonitorGUI.MainWindow"
+﻿<Window x:Name="mainWindow" x:Class="FoxHollow.TelescopePowerMonitor.GUI.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        xmlns:local="clr-namespace:BatteryMonitorGUI"
-        xmlns:properties="clr-namespace:BatteryMonitorGUI.Properties"
-        xmlns:xctk="http://schemas.xceed.com/wpf/xaml/toolkit"
+        xmlns:local="clr-namespace:FoxHollow.TelescopePowerMonitor.GUI"
+        xmlns:converters="clr-namespace:FoxHollow.TelescopePowerMonitor.GUI.Converters"
+        xmlns:properties="clr-namespace:FoxHollow.TelescopePowerMonitor.GUI.Properties"
+        xmlns:xctk="http://schemas.xceed.com/wpf/xaml/toolkit" 
         mc:Ignorable="d"
         Title="Telescope Power Monitor v2" 
-        Height="500" 
+        Height="600" 
         Width="479" 
         Loaded="Window_Loaded" 
         ResizeMode="CanMinimize" 
@@ -17,8 +18,10 @@
         DataContext="{Binding RelativeSource={RelativeSource Self}}"
         >
     <Window.Resources>
-        <local:AmperageValueConverter x:Key="AmperageValueConverter"/>
-        <local:VoltageValueConverter x:Key="VoltageValueConverter"/>
+        <converters:AmperageValueConverter x:Key="AmperageValueConverter"/>
+        <converters:VoltageValueConverter x:Key="VoltageValueConverter"/>
+        <converters:TemperatureValueConverter x:Key="TemperatureValueConverter"/>
+        <converters:PercentValueConverter x:Key="PercentValueConverter"/>
     </Window.Resources>
     <DockPanel>
         <StatusBar DockPanel.Dock="Bottom" Height="22">
@@ -43,57 +46,244 @@
                             <RowDefinition Height="Auto"/>
                             <RowDefinition Height="Auto"/>
                             <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
                         </Grid.RowDefinitions>
-                        <Grid Grid.Row="0" Margin="2,0">
+                        
+                        <Grid Grid.Row="0">
                             <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="Auto"/>
                             </Grid.RowDefinitions>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="1*"/>
                                 <ColumnDefinition Width="1*"/>
                             </Grid.ColumnDefinitions>
-                            <Label Grid.Row="0" Grid.ColumnSpan="2" Content="Current Voltage" Background="LightGray" Foreground="Black" FontSize="13" Padding="0,0,0,3" HorizontalContentAlignment="Center" FontWeight="Bold"/>
 
-                            <Rectangle Grid.Row="1" Grid.ColumnSpan="2" Fill="#FF000000" MinHeight="28" />
-                            <TextBlock Grid.Row="1" Grid.ColumnSpan="2" Name="voltageAvgBlock" Text="---- v" HorizontalAlignment="Center" FontSize="48" FontWeight="Bold" Foreground="White"/>
+                            <Grid Grid.Row="0" Grid.Column="0" Margin="2,0,0,0">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="1*"/>
+                                    <ColumnDefinition Width="1*"/>
+                                </Grid.ColumnDefinitions>
+                                <Label Grid.Row="0" Grid.ColumnSpan="2" Content="Current Voltage" Background="LightGray" Foreground="Black" FontSize="13" Padding="0,0,0,3" HorizontalContentAlignment="Center" FontWeight="Bold"/>
 
-                            <Label Grid.Row="2" Grid.Column="0" Content="Min" Background="LightGray" Foreground="Black" FontSize="10.667" Padding="0,0,0,3" HorizontalContentAlignment="Center" FontWeight="Bold"/>
-                            <Rectangle Grid.Row="3" Grid.Column="0" Fill="#FF000000" MinHeight="28" />
-                            <TextBlock Grid.Row="3" Grid.Column="0" Name="voltageMinBlock" Text="---- v" HorizontalAlignment="Center" FontSize="24" FontWeight="Bold" Foreground="White"/>
+                                <Rectangle Grid.Row="1" Grid.ColumnSpan="2" Fill="#FF000000" MinHeight="28" />
+                                <TextBlock Grid.Row="1" Grid.ColumnSpan="2" Name="voltageAvgBlock" Text="----" HorizontalAlignment="Center" FontSize="48" FontWeight="Bold" Foreground="White"/>
 
-                            <Label Grid.Row="2" Grid.Column="1" Content="Max" Background="LightGray" Foreground="Black" FontSize="10.667" Padding="0,0,0,3" HorizontalContentAlignment="Center" FontWeight="Bold"/>
-                            <Rectangle Grid.Row="3" Grid.Column="1" Fill="#FF000000" MinHeight="28" />
-                            <TextBlock Grid.Row="3" Grid.Column="1" Name="voltageMaxBlock" Text="---- v" HorizontalAlignment="Center" FontSize="24" FontWeight="Bold" Foreground="White"/>
+                                <Label Grid.Row="2" Grid.Column="0" Content="Min" Background="LightGray" Foreground="Black" FontSize="10.667" Padding="0,0,0,3" HorizontalContentAlignment="Center" FontWeight="Bold"/>
+                                <Rectangle Grid.Row="3" Grid.Column="0" Fill="#FF000000" MinHeight="28" />
+                                <TextBlock Grid.Row="3" Grid.Column="0" Name="voltageMinBlock" Text="----" HorizontalAlignment="Center" FontSize="24" FontWeight="Bold" Foreground="White"/>
+
+                                <Label Grid.Row="2" Grid.Column="1" Content="Max" Background="LightGray" Foreground="Black" FontSize="10.667" Padding="0,0,0,3" HorizontalContentAlignment="Center" FontWeight="Bold"/>
+                                <Rectangle Grid.Row="3" Grid.Column="1" Fill="#FF000000" MinHeight="28" />
+                                <TextBlock Grid.Row="3" Grid.Column="1" Name="voltageMaxBlock" Text="----" HorizontalAlignment="Center" FontSize="24" FontWeight="Bold" Foreground="White"/>
+                            </Grid>
+
+                            <Grid Grid.Row="0" Grid.Column="1" Margin="0,0,2,0">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="1*"/>
+                                    <ColumnDefinition Width="1*"/>
+                                </Grid.ColumnDefinitions>
+                                <Label Grid.Row="0" Grid.ColumnSpan="2" Content="Battery SOC" Background="LightGray" Foreground="Black" FontSize="13" Padding="0,0,0,3" HorizontalContentAlignment="Center" FontWeight="Bold"/>
+
+                                <Rectangle Grid.Row="1" Grid.ColumnSpan="2" Fill="#FF000000" MinHeight="28" />
+                                <TextBlock Grid.Row="1" Grid.ColumnSpan="2" Name="batterySocAvgBlock" Text="----" HorizontalAlignment="Center" FontSize="48" FontWeight="Bold" Foreground="White"/>
+
+                                <Label Grid.Row="2" Grid.Column="0" Content="Min" Background="LightGray" Foreground="Black" FontSize="10.667" Padding="0,0,0,3" HorizontalContentAlignment="Center" FontWeight="Bold"/>
+                                <Rectangle Grid.Row="3" Grid.Column="0" Fill="#FF000000" MinHeight="28" />
+                                <TextBlock Grid.Row="3" Grid.Column="0" Name="batterySocMinBlock" Text="----" HorizontalAlignment="Center" FontSize="24" FontWeight="Bold" Foreground="White"/>
+
+                                <Label Grid.Row="2" Grid.Column="1" Content="Max" Background="LightGray" Foreground="Black" FontSize="10.667" Padding="0,0,0,3" HorizontalContentAlignment="Center" FontWeight="Bold"/>
+                                <Rectangle Grid.Row="3" Grid.Column="1" Fill="#FF000000" MinHeight="28" />
+                                <TextBlock Grid.Row="3" Grid.Column="1" Name="batterySocMaxBlock" Text="----" HorizontalAlignment="Center" FontSize="24" FontWeight="Bold" Foreground="White"/>
+                            </Grid>
+
                         </Grid>
-                        <Grid Grid.Row="1" Margin="2,0">
+
+                        <Grid Grid.Row="1">
                             <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="Auto"/>
                             </Grid.RowDefinitions>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="1*"/>
                                 <ColumnDefinition Width="1*"/>
                             </Grid.ColumnDefinitions>
-                            <Label Grid.Row="0" Grid.ColumnSpan="2" Content="Current Load" Background="LightGray" Foreground="Black" FontSize="13" Padding="0,0,0,3" HorizontalContentAlignment="Center" FontWeight="Bold"/>
 
-                            <Rectangle Grid.Row="1" Grid.ColumnSpan="2" Fill="#FF000000" MinHeight="28" />
-                            <TextBlock Grid.Row="1" Grid.ColumnSpan="2" Name="amperageAvgBlock" Text="---- A" FontSize="48" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center"/>
 
-                            <Label Grid.Row="2" Grid.Column="0" Content="Min" Background="LightGray" Foreground="Black" FontSize="10.667" Padding="0,0,0,3" HorizontalContentAlignment="Center" FontWeight="Bold"/>
-                            <Rectangle Grid.Row="3" Grid.Column="0" Fill="#FF000000" MinHeight="28" />
-                            <TextBlock Grid.Row="3" Grid.Column="0" Name="amperageMinBlock" Text="---- A" HorizontalAlignment="Center" FontSize="24" FontWeight="Bold" Foreground="White"/>
+                            <Grid Grid.Row="0" Grid.Column="0" Margin="2,0,0,0">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="1*"/>
+                                    <ColumnDefinition Width="1*"/>
+                                </Grid.ColumnDefinitions>
+                                <Label Grid.Row="0" Grid.ColumnSpan="2" Content="Current Temperature" Background="LightGray" Foreground="Black" FontSize="13" Padding="0,0,0,3" HorizontalContentAlignment="Center" FontWeight="Bold"/>
 
-                            <Label Grid.Row="2" Grid.Column="1" Content="Max" Background="LightGray" Foreground="Black" FontSize="10.667" Padding="0,0,0,3" HorizontalContentAlignment="Center" FontWeight="Bold"/>
-                            <Rectangle Grid.Row="3" Grid.Column="1" Fill="#FF000000" MinHeight="28" />
-                            <TextBlock Grid.Row="3" Grid.Column="1" Name="amperageMaxBlock" Text="---- A" HorizontalAlignment="Center" FontSize="24" FontWeight="Bold" Foreground="White"/>
+                                <Rectangle Grid.Row="1" Grid.ColumnSpan="2" Fill="#FF000000" MinHeight="28" />
+                                <TextBlock Grid.Row="1" Grid.ColumnSpan="2" Name="temperageAvgBlock" Text="----" HorizontalAlignment="Center" FontSize="48" FontWeight="Bold" Foreground="White"/>
+
+                                <Label Grid.Row="2" Grid.Column="0" Content="Min" Background="LightGray" Foreground="Black" FontSize="10.667" Padding="0,0,0,3" HorizontalContentAlignment="Center" FontWeight="Bold"/>
+                                <Rectangle Grid.Row="3" Grid.Column="0" Fill="#FF000000" MinHeight="28" />
+                                <TextBlock Grid.Row="3" Grid.Column="0" Name="temperageMinBlock" Text="----" HorizontalAlignment="Center" FontSize="24" FontWeight="Bold" Foreground="White"/>
+
+                                <Label Grid.Row="2" Grid.Column="1" Content="Max" Background="LightGray" Foreground="Black" FontSize="10.667" Padding="0,0,0,3" HorizontalContentAlignment="Center" FontWeight="Bold"/>
+                                <Rectangle Grid.Row="3" Grid.Column="1" Fill="#FF000000" MinHeight="28" />
+                                <TextBlock Grid.Row="3" Grid.Column="1" Name="temperageMaxBlock" Text="----" HorizontalAlignment="Center" FontSize="24" FontWeight="Bold" Foreground="White"/>
+                            </Grid>
+
+                            <Grid Grid.Row="0" Grid.Column="1" Margin="0,0,2,0">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="1*"/>
+                                    <ColumnDefinition Width="1*"/>
+                                </Grid.ColumnDefinitions>
+                                <Label Grid.Row="0" Grid.ColumnSpan="2" Content="Current Humidity" Background="LightGray" Foreground="Black" FontSize="13" Padding="0,0,0,3" HorizontalContentAlignment="Center" FontWeight="Bold"/>
+
+                                <Rectangle Grid.Row="1" Grid.ColumnSpan="2" Fill="#FF000000" MinHeight="28" />
+                                <TextBlock Grid.Row="1" Grid.ColumnSpan="2" Name="humidityAvgBlock" Text="----" HorizontalAlignment="Center" FontSize="48" FontWeight="Bold" Foreground="White"/>
+
+                                <Label Grid.Row="2" Grid.Column="0" Content="Min" Background="LightGray" Foreground="Black" FontSize="10.667" Padding="0,0,0,3" HorizontalContentAlignment="Center" FontWeight="Bold"/>
+                                <Rectangle Grid.Row="3" Grid.Column="0" Fill="#FF000000" MinHeight="28" />
+                                <TextBlock Grid.Row="3" Grid.Column="0" Name="humidityMinBlock" Text="----" HorizontalAlignment="Center" FontSize="24" FontWeight="Bold" Foreground="White"/>
+
+                                <Label Grid.Row="2" Grid.Column="1" Content="Max" Background="LightGray" Foreground="Black" FontSize="10.667" Padding="0,0,0,3" HorizontalContentAlignment="Center" FontWeight="Bold"/>
+                                <Rectangle Grid.Row="3" Grid.Column="1" Fill="#FF000000" MinHeight="28" />
+                                <TextBlock Grid.Row="3" Grid.Column="1" Name="humidityMaxBlock" Text="----" HorizontalAlignment="Center" FontSize="24" FontWeight="Bold" Foreground="White"/>
+                            </Grid>
                         </Grid>
 
-                        <Grid Grid.Row="2" Margin="2,0">
+                        <Grid Grid.Row="2">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="1*"/>
+                                <ColumnDefinition Width="1*"/>
+                                <ColumnDefinition Width="1*"/>
+                                <ColumnDefinition Width="1*"/>
+                            </Grid.ColumnDefinitions>
+
+                            <Grid Grid.Row="2" Grid.Column="0" Margin="2,0,0,0">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="1*"/>
+                                    <ColumnDefinition Width="1*"/>
+                                </Grid.ColumnDefinitions>
+                                <Label Grid.Row="0" Grid.ColumnSpan="2" Content="Battery" Background="LightGray" Foreground="Black" FontSize="11" Padding="0,0,0,3" HorizontalContentAlignment="Center" FontWeight="Bold"/>
+
+                                <Rectangle Grid.Row="1" Grid.ColumnSpan="2" Fill="#FF000000" MinHeight="28" />
+                                <TextBlock Grid.Row="1" Grid.ColumnSpan="2" Name="batteryAmperageAvgBlock" Text="----" FontSize="36" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center"/>
+
+                                <Label Grid.Row="2" Grid.Column="0" Content="Min" Background="LightGray" Foreground="Black" FontSize="9.5" Padding="0,0,0,3" HorizontalContentAlignment="Center" FontWeight="Bold"/>
+                                <Rectangle Grid.Row="3" Grid.Column="0" Fill="#FF000000" MinHeight="28" />
+                                <TextBlock Grid.Row="3" Grid.Column="0" Name="batteryAmperageMinBlock" Text="----" HorizontalAlignment="Center" FontSize="18" FontWeight="Bold" Foreground="White"/>
+
+                                <Label Grid.Row="2" Grid.Column="1" Content="Max" Background="LightGray" Foreground="Black" FontSize="9.5" Padding="0,0,0,3" HorizontalContentAlignment="Center" FontWeight="Bold"/>
+                                <Rectangle Grid.Row="3" Grid.Column="1" Fill="#FF000000" MinHeight="28" />
+                                <TextBlock Grid.Row="3" Grid.Column="1" Name="batteryAmperageMaxBlock" Text="----" HorizontalAlignment="Center" FontSize="18" FontWeight="Bold" Foreground="White"/>
+                            </Grid>
+
+                            <Grid Grid.Row="2" Grid.Column="1" Margin="0,0">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="1*"/>
+                                    <ColumnDefinition Width="1*"/>
+                                </Grid.ColumnDefinitions>
+                                <Label Grid.Row="0" Grid.ColumnSpan="2" Content="Load" Background="LightGray" Foreground="Black" FontSize="11" Padding="0,0,0,3" HorizontalContentAlignment="Center" FontWeight="Bold"/>
+
+                                <Rectangle Grid.Row="1" Grid.ColumnSpan="2" Fill="#FF000000" MinHeight="28" />
+                                <TextBlock Grid.Row="1" Grid.ColumnSpan="2" Name="loadAmperageAvgBlock" Text="----" FontSize="36" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center"/>
+
+                                <Label Grid.Row="2" Grid.Column="0" Content="Min" Background="LightGray" Foreground="Black" FontSize="9.5" Padding="0,0,0,3" HorizontalContentAlignment="Center" FontWeight="Bold"/>
+                                <Rectangle Grid.Row="3" Grid.Column="0" Fill="#FF000000" MinHeight="28" />
+                                <TextBlock Grid.Row="3" Grid.Column="0" Name="loadAmperageMinBlock" Text="----" HorizontalAlignment="Center" FontSize="18" FontWeight="Bold" Foreground="White"/>
+
+                                <Label Grid.Row="2" Grid.Column="1" Content="Max" Background="LightGray" Foreground="Black" FontSize="9.5" Padding="0,0,0,3" HorizontalContentAlignment="Center" FontWeight="Bold"/>
+                                <Rectangle Grid.Row="3" Grid.Column="1" Fill="#FF000000" MinHeight="28" />
+                                <TextBlock Grid.Row="3" Grid.Column="1" Name="loadAmperageMaxBlock" Text="----" HorizontalAlignment="Center" FontSize="18" FontWeight="Bold" Foreground="White"/>
+                            </Grid>
+
+                            <Grid Grid.Row="2" Grid.Column="2" Margin="0,0">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="1*"/>
+                                    <ColumnDefinition Width="1*"/>
+                                </Grid.ColumnDefinitions>
+                                <Label Grid.Row="0" Grid.ColumnSpan="2" Content="Solar" Background="LightGray" Foreground="Black" FontSize="11" Padding="0,0,0,3" HorizontalContentAlignment="Center" FontWeight="Bold"/>
+
+                                <Rectangle Grid.Row="1" Grid.ColumnSpan="2" Fill="#FF000000" MinHeight="28" />
+                                <TextBlock Grid.Row="1" Grid.ColumnSpan="2" Name="solarAmperageAvgBlock" Text="----" FontSize="36" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center"/>
+
+                                <Label Grid.Row="2" Grid.Column="0" Content="Min" Background="LightGray" Foreground="Black" FontSize="9.5" Padding="0,0,0,3" HorizontalContentAlignment="Center" FontWeight="Bold"/>
+                                <Rectangle Grid.Row="3" Grid.Column="0" Fill="#FF000000" MinHeight="28" />
+                                <TextBlock Grid.Row="3" Grid.Column="0" Name="solarAmperageMinBlock" Text="----" HorizontalAlignment="Center" FontSize="18" FontWeight="Bold" Foreground="White"/>
+
+                                <Label Grid.Row="2" Grid.Column="1" Content="Max" Background="LightGray" Foreground="Black" FontSize="9.5" Padding="0,0,0,3" HorizontalContentAlignment="Center" FontWeight="Bold"/>
+                                <Rectangle Grid.Row="3" Grid.Column="1" Fill="#FF000000" MinHeight="28" />
+                                <TextBlock Grid.Row="3" Grid.Column="1" Name="solarAmperageMaxBlock" Text="----" HorizontalAlignment="Center" FontSize="18" FontWeight="Bold" Foreground="White"/>
+                            </Grid>
+
+                            <Grid Grid.Row="2" Grid.Column="3" Margin="0,0,2,0">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="1*"/>
+                                    <ColumnDefinition Width="1*"/>
+                                </Grid.ColumnDefinitions>
+                                <Label Grid.Row="0" Grid.ColumnSpan="2" Content="AC" Background="LightGray" Foreground="Black" FontSize="11" Padding="0,0,0,3" HorizontalContentAlignment="Center" FontWeight="Bold"/>
+
+                                <Rectangle Grid.Row="1" Grid.ColumnSpan="2" Fill="#FF000000" MinHeight="28" />
+                                <TextBlock Grid.Row="1" Grid.ColumnSpan="2" Name="acAmperageAvgBlock" Text="----" FontSize="36" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center"/>
+
+                                <Label Grid.Row="2" Grid.Column="0" Content="Min" Background="LightGray" Foreground="Black" FontSize="9.5" Padding="0,0,0,3" HorizontalContentAlignment="Center" FontWeight="Bold"/>
+                                <Rectangle Grid.Row="3" Grid.Column="0" Fill="#FF000000" MinHeight="28" />
+                                <TextBlock Grid.Row="3" Grid.Column="0" Name="acAmperageMinBlock" Text="----" HorizontalAlignment="Center" FontSize="18" FontWeight="Bold" Foreground="White"/>
+
+                                <Label Grid.Row="2" Grid.Column="1" Content="Max" Background="LightGray" Foreground="Black" FontSize="9.5" Padding="0,0,0,3" HorizontalContentAlignment="Center" FontWeight="Bold"/>
+                                <Rectangle Grid.Row="3" Grid.Column="1" Fill="#FF000000" MinHeight="28" />
+                                <TextBlock Grid.Row="3" Grid.Column="1" Name="acAmperageMaxBlock" Text="----" HorizontalAlignment="Center" FontSize="18" FontWeight="Bold" Foreground="White"/>
+                            </Grid>
+                        </Grid>
+
+                        <Grid Grid.Row="3" Margin="2,0">
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="Auto"/>
@@ -109,9 +299,9 @@
                         </Grid>
                     </Grid>
                     <StackPanel Orientation="Horizontal" Grid.Row="2">
-                        <Button x:Name="button_refreshPorts" Content="Scan Serial Ports" Margin="5" Click="refreshPortsButton_Click" Padding="7,2" HorizontalAlignment="Center"/>
+                        <Button x:Name="button_refreshPorts" Content="Scan Serial Ports" Margin="5" Click="RefreshPortsButton_Click" Padding="7,2" HorizontalAlignment="Center"/>
                         <ComboBox x:Name="comPortList" Margin="5" SelectionChanged="comPortList_SelectionChanged" Padding="5" HorizontalAlignment="Center" MinWidth="80"/>
-                        <Button x:Name="button_Connect" Content="Connect" HorizontalAlignment="Center" Padding="7,2" Margin="5" Click="connectButton_Click" />
+                        <Button x:Name="button_Connect" Content="Connect" HorizontalAlignment="Center" Padding="7,2" Margin="5" Click="ConnectButton_Click" />
                     </StackPanel>
                 </Grid>
             </TabItem>

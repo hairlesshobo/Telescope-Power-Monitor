@@ -7,8 +7,8 @@
     <ProjectGuid>{A74E5C40-A99C-491A-B6AC-DEE322CF198E}</ProjectGuid>
     <OutputType>WinExe</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>BatteryMonitorGUI</RootNamespace>
-    <AssemblyName>BatteryMonitorGUI</AssemblyName>
+    <RootNamespace>FoxHollow.TelescopePowerMonitor.GUI</RootNamespace>
+    <AssemblyName>TelescopePowerMonitor</AssemblyName>
     <TargetFrameworkVersion>v4.8</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <ProjectTypeGuids>{60dc8134-eba5-43b8-bcc9-bb4bc16c2548};{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}</ProjectTypeGuids>
@@ -91,9 +91,12 @@
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </ApplicationDefinition>
+    <Compile Include="Formatting.cs" />
+    <Compile Include="Converters\PercentValueConverter.cs" />
+    <Compile Include="Converters\TemperatureValueConverter.cs" />
     <Compile Include="Settings.cs" />
-    <Compile Include="AmperageValueConverter.cs" />
-    <Compile Include="VoltageValueConverter.cs" />
+    <Compile Include="Converters\AmperageValueConverter.cs" />
+    <Compile Include="Converters\VoltageValueConverter.cs" />
     <Page Include="MainWindow.xaml">
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>

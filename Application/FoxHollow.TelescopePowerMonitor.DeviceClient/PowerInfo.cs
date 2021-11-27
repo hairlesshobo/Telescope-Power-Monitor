@@ -18,9 +18,7 @@ namespace FoxHollow.TelescopePowerMonitor.DeviceClient
         public FloatValue BatterySoc { get; } = new FloatValue();
         public FloatValue BatteryCapacityAh { get; } = new FloatValue();
 
-        public bool ParseSuccess { get; set; } = false;
-
-        internal void ParseLogLine(string inputLine)
+        internal bool ParseLogLine(string inputLine)
         {
             string[] parts = inputLine.Split('|');
 
@@ -28,7 +26,10 @@ namespace FoxHollow.TelescopePowerMonitor.DeviceClient
             // <ISO_DTM>|<UptimeSeconds>|PWR|<Voltage>|<BatteryAmps>|<LoadAmps>|<SolarAmps>|<AcAmps>|<BatterySoc>|<BatteryCapacityAh>
             
             if (parts.Length < 10)
-                return;
+                return false;
+
+            if (!parts[2].Equals("PWR", StringComparison.InvariantCultureIgnoreCase))
+                return false;
 
             this.LastReadDtm = DateTimeOffset.Parse(parts[0]);
             this.LastReadUptime = Int32.Parse(parts[1]);
@@ -41,7 +42,7 @@ namespace FoxHollow.TelescopePowerMonitor.DeviceClient
             this.BatterySoc.UpdateValue(parts[8], this.LastReadDtm);
             this.BatteryCapacityAh.UpdateValue(parts[9], this.LastReadDtm);
 
-            ParseSuccess = true;
+            return true;
         }
     }
 }

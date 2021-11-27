@@ -240,17 +240,17 @@ namespace FoxHollow.TelescopePowerMonitor.DeviceClient
             this.PropertyChanged += ValidateProperty;
         }
 
-        internal void ParseLogLine(string line)
+        internal bool ParseLogLine(string line)
         {
             //         0             1          2           3              4
             // ex: <ISO_DTM>|<UptimeSeconds>|CONFIG|AverageReadingCount|<value>
             string[] parts = line.Split('|');
 
             if (parts.Length < 5)
-                return;
+                return false;
 
             if (!parts[2].Equals("CONFIG", StringComparison.InvariantCultureIgnoreCase))
-                return;
+                return false;
 
             string variable = parts[3];
             string strValue = parts[4];
@@ -309,9 +309,10 @@ namespace FoxHollow.TelescopePowerMonitor.DeviceClient
             else if (variable.Equals("BatteryAbsorbVoltage", StringComparison.InvariantCultureIgnoreCase))
                 this.BatteryAbsorbVoltage = Single.Parse(strValue);
 
+            else 
+                return false;
 
-
-            this.ParseSuccess = true;
+            return true;
         }
 
         protected void OnPropertyChanged([CallerMemberName] string name = null)

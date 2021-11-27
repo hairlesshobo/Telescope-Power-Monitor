@@ -6,18 +6,14 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Data;
 
-namespace BatteryMonitorGUI
+namespace FoxHollow.TelescopePowerMonitor.GUI.Converters
 {
-    class AmperageValueConverter : IValueConverter
+    class PercentValueConverter : IValueConverter
     {
         public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
-        {
-            return ((float)value).ToString("0.00") + "A";
-        }
+            => Formatting.FormatPercentage((float)value);
 
         public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
-        {
-            throw new NotImplementedException();
-        }
+            => new NotImplementedException();
     }
 }
