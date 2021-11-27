@@ -7,6 +7,7 @@ using System.IO;
 using System.IO.Ports;
 using System.Linq;
 using System.Threading;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
@@ -180,7 +181,7 @@ namespace BatteryMonitorGUI
             if (!tpmClient.Connected)
                 return;
 
-            tpmClient.Disconnect();
+            Task.Run(() => tpmClient.Disconnect());
 
             statusBar_SetDisconnected();
             controls_enable();
