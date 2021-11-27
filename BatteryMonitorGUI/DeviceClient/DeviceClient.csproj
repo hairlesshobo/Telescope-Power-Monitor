@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net48</TargetFramework>
+    <GeneratePackageOnBuild>True</GeneratePackageOnBuild>
+    <Authors>hairlesshobo</Authors>
+    <PackageId>FoxHollow.TelescopePowerMonitor.DeviceClient</PackageId>
+  </PropertyGroup>
+
+</Project>

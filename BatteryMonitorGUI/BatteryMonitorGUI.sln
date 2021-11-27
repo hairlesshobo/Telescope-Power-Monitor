@@ -1,9 +1,11 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 14
-VisualStudioVersion = 14.0.24720.0
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BatteryMonitorGUI", "BatteryMonitorGUI.csproj", "{A74E5C40-A99C-491A-B6AC-DEE322CF198E}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BatteryMonitorGUI", "BatteryMonitorGUI\BatteryMonitorGUI.csproj", "{A74E5C40-A99C-491A-B6AC-DEE322CF198E}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DeviceClient", "DeviceClient\DeviceClient.csproj", "{092CE067-E20B-480F-B84D-7BA3B4EC3F0B}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -15,8 +17,15 @@ Global
 		{A74E5C40-A99C-491A-B6AC-DEE322CF198E}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{A74E5C40-A99C-491A-B6AC-DEE322CF198E}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{A74E5C40-A99C-491A-B6AC-DEE322CF198E}.Release|Any CPU.Build.0 = Release|Any CPU
+		{092CE067-E20B-480F-B84D-7BA3B4EC3F0B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{092CE067-E20B-480F-B84D-7BA3B4EC3F0B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{092CE067-E20B-480F-B84D-7BA3B4EC3F0B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{092CE067-E20B-480F-B84D-7BA3B4EC3F0B}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {AF4CAE5D-5C46-480D-9872-5F016EC9E7E4}
 	EndGlobalSection
 EndGlobal
