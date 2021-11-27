@@ -49,7 +49,7 @@ namespace BatteryMonitorGUI.Properties {
         
         [global::System.Configuration.UserScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("11.8")]
+        [global::System.Configuration.DefaultSettingValueAttribute("12.4")]
         public float watchVoltage {
             get {
                 return ((float)(this["watchVoltage"]));
@@ -61,7 +61,7 @@ namespace BatteryMonitorGUI.Properties {
         
         [global::System.Configuration.UserScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("11.5")]
+        [global::System.Configuration.DefaultSettingValueAttribute("12.2")]
         public float warningVoltage {
             get {
                 return ((float)(this["warningVoltage"]));
@@ -73,7 +73,7 @@ namespace BatteryMonitorGUI.Properties {
         
         [global::System.Configuration.UserScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("1.5")]
+        [global::System.Configuration.DefaultSettingValueAttribute("6")]
         public float watchAmperage {
             get {
                 return ((float)(this["watchAmperage"]));
@@ -85,7 +85,7 @@ namespace BatteryMonitorGUI.Properties {
         
         [global::System.Configuration.UserScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("2")]
+        [global::System.Configuration.DefaultSettingValueAttribute("8")]
         public float warningAmperage {
             get {
                 return ((float)(this["warningAmperage"]));
@@ -130,7 +130,7 @@ namespace BatteryMonitorGUI.Properties {
         
         [global::System.Configuration.ApplicationScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("13.5")]
+        [global::System.Configuration.DefaultSettingValueAttribute("14.8")]
         public float maxVoltageRange {
             get {
                 return ((float)(this["maxVoltageRange"]));
@@ -188,18 +188,6 @@ namespace BatteryMonitorGUI.Properties {
         public string maxAmperageRange {
             get {
                 return ((string)(this["maxAmperageRange"]));
-            }
-        }
-        
-        [global::System.Configuration.UserScopedSettingAttribute()]
-        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("True")]
-        public bool showLiveMinMax {
-            get {
-                return ((bool)(this["showLiveMinMax"]));
-            }
-            set {
-                this["showLiveMinMax"] = value;
             }
         }
     }

@@ -144,7 +144,7 @@
     <Resource Include="license.txt" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\DeviceClient\DeviceClient.csproj">
+    <ProjectReference Include="..\FoxHollow.TelescopePowerMonitor.DeviceClient\FoxHollow.TelescopePowerMonitor.DeviceClient.csproj">
       <Project>{092CE067-E20B-480F-B84D-7BA3B4EC3F0B}</Project>
       <Name>DeviceClient</Name>
     </ProjectReference>
