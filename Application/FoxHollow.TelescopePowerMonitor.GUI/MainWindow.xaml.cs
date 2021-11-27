@@ -69,7 +69,7 @@ namespace BatteryMonitorGUI
 
         private void Default_PropertyChanged1(object sender, System.ComponentModel.PropertyChangedEventArgs e)
         {
-            if (e.PropertyName == "watchVoltage")
+            if (e.PropertyName == nameof(Default.watchVoltage))
             {
                 if (Default.watchVoltage == Default.minVoltageRange)
                     Default.warningVoltage = Default.minVoltageRange;
@@ -80,7 +80,7 @@ namespace BatteryMonitorGUI
                 }
             }
 
-            if (e.PropertyName == "warningVoltage")
+            if (e.PropertyName == nameof(Default.warningVoltage))
             {
                 if (Default.warningVoltage == Default.maxVoltageRange)
                     Default.watchVoltage = Default.maxVoltageRange;

@@ -203,19 +203,34 @@ namespace FoxHollow.TelescopePowerMonitor.DeviceClient
             if (_serialPort != null && _serialPort.IsOpen)
             {
                 _serialPort.Write(line + "\n");
-                Thread.Sleep(250);
+                Thread.Sleep(100);
             }
         }
 
         public void SaveEEPROM()
         {
-            WriteToDevice("SET AverageReadingCount " + DeviceConfig.AverageReadingCount.ToString());
-            WriteToDevice("SET UpdateFrequency " + DeviceConfig.UpdateFrequency.ToString());
-            WriteToDevice("SET WriteInterval " + DeviceConfig.WriteInterval.ToString());
-            WriteToDevice("SET VoltageCalibration " + DeviceConfig.VoltageCalibration.ToString("0.0000"));
-            WriteToDevice("SET R1Actual " + DeviceConfig.R1Actual.ToString());
-            WriteToDevice("SET R2Actual " + DeviceConfig.R2Actual.ToString());
-            WriteToDevice("SET AmpDigitalOffset " + DeviceConfig.AmpDigitalOffset.ToString());
+            // we don't want to attempt to write the EEPROM if it hasn't first been read
+            if (!this.DeviceConfig.EepromRead)
+                return;
+
+            this.WriteToDevice($"SET AverageReadingCount {this.DeviceConfig.AverageReadingCount}");
+            this.WriteToDevice($"SET UpdateFrequency {this.DeviceConfig.UpdateFrequency}");
+            this.WriteToDevice($"SET WriteInterval {this.DeviceConfig.WriteInterval}");
+            this.WriteToDevice($"SET VoltageCalibration {this.DeviceConfig.VoltageCalibration}");
+            this.WriteToDevice($"SET R1Actual {this.DeviceConfig.R1Actual}");
+            this.WriteToDevice($"SET R2Actual {this.DeviceConfig.R2Actual}");
+            this.WriteToDevice($"SET AmpDigitalOffset1 {this.DeviceConfig.AmpDigitalOffset1}");
+            this.WriteToDevice($"SET AmpDigitalOffset2 {this.DeviceConfig.AmpDigitalOffset2}");
+            this.WriteToDevice($"SET AmpDigitalOffset3 {this.DeviceConfig.AmpDigitalOffset3}");
+            this.WriteToDevice($"SET TemperatureCalibration {this.DeviceConfig.TemperatureCalibration}");
+            this.WriteToDevice($"SET HumidityCalibration {this.DeviceConfig.HumidityCalibration}");
+            this.WriteToDevice($"SET TargetHumidity {this.DeviceConfig.TargetHumidity}");
+            this.WriteToDevice($"SET HumidityHysterisis {this.DeviceConfig.HumidityHysterisis}");
+            this.WriteToDevice($"SET AcBackupPoint {this.DeviceConfig.AcBackupPoint}");
+            this.WriteToDevice($"SET AcRecoveredPoint {this.DeviceConfig.AcRecoveredPoint}");
+            this.WriteToDevice($"SET BatteryCapacityAh {this.DeviceConfig.BatteryCapacityAh}");
+            this.WriteToDevice($"SET BatteryEndingAmps {this.DeviceConfig.BatteryEndingAmps}");
+            this.WriteToDevice($"SET BatteryAbsorbVoltage {this.DeviceConfig.BatteryAbsorbVoltage}");
 
             WriteToDevice("SAVE");
         }

@@ -13,13 +13,24 @@ namespace FoxHollow.TelescopePowerMonitor.DeviceClient
         private DateTimeOffset _lastReadDtm;
         private int _lastReadUptime;
 
-        private int _AverageReadingCount;
-        private float _UpdateFrequency;
-        private float _WriteInterval;
-        private float _VoltageCalibration;
-        private int _R1Actual;
-        private int _R2Actual;
-        private int _AmpDigitalOffset;
+        private int _averageReadingCount;
+        private float _updateFrequency;
+        private float _writeInterval;
+        private float _voltageCalibration;
+        private int _r1Actual;
+        private int _r2Actual;
+        private int _ampDigitalOffset1;
+        private int _ampDigitalOffset2;
+        private int _ampDigitalOffset3;
+        private float _temperatureCalibration;
+        private float _humidityCalibration;
+        private int _targetHumidity;
+        private int _humidityHysterisis;
+        private int _acBackupPoint;
+        private int _acRecoveredPoint;
+        private int _batteryCapacityAh;
+        private float _batteryEndingAmps;
+        private float _batteryAbsorbVoltage;
 
         private bool _eepromRead = false;
 
@@ -62,66 +73,171 @@ namespace FoxHollow.TelescopePowerMonitor.DeviceClient
 
         public int AverageReadingCount
         {
-            get => _AverageReadingCount;
+            get => _averageReadingCount;
             set
             {
-                _AverageReadingCount = value;
+                _averageReadingCount = value;
                 OnPropertyChanged();
             }
         }
         public float UpdateFrequency
         {
-            get => _UpdateFrequency;
+            get => _updateFrequency;
             set
             {
-                _UpdateFrequency = value;
+                _updateFrequency = value;
                 OnPropertyChanged();
             }
         }
         public float WriteInterval
         {
-            get => _WriteInterval;
+            get => _writeInterval;
             set
             {
-                _WriteInterval = value;
+                _writeInterval = value;
                 OnPropertyChanged();
             }
         }
         public float VoltageCalibration
         {
-            get => _VoltageCalibration;
+            get => _voltageCalibration;
             set
             {
-                _VoltageCalibration = value;
+                _voltageCalibration = value;
                 OnPropertyChanged();
             }
         }
         public int R1Actual
         {
-            get => _R1Actual;
+            get => _r1Actual;
             set
             {
-                _R1Actual = value;
+                _r1Actual = value;
                 OnPropertyChanged();
             }
         }
         public int R2Actual
         {
-            get => _R2Actual;
+            get => _r2Actual;
             set
             {
-                _R2Actual = value;
+                _r2Actual = value;
                 OnPropertyChanged();
             }
         }
-        public int AmpDigitalOffset
+        public int AmpDigitalOffset1
         {
-            get => _AmpDigitalOffset;
+            get => _ampDigitalOffset1;
             set
             {
-                _AmpDigitalOffset = value;
+                _ampDigitalOffset1 = value;
                 OnPropertyChanged();
             }
+        }
+        public int AmpDigitalOffset2
+        {
+            get => _ampDigitalOffset2;
+            set
+            {
+                _ampDigitalOffset2 = value;
+                OnPropertyChanged();
+            }
+        }
+        public int AmpDigitalOffset3
+        {
+            get => _ampDigitalOffset3;
+            set
+            {
+                _ampDigitalOffset3 = value;
+                OnPropertyChanged();
+            }
+        }
+        public float TemperatureCalibration
+        {
+            get => _temperatureCalibration;
+            set
+            {
+                _temperatureCalibration = value;
+                OnPropertyChanged();
+            }
+        }
+        public float HumidityCalibration
+        {
+            get => _humidityCalibration;
+            set
+            {
+                _humidityCalibration = value;
+                OnPropertyChanged();
+            }
+        }
+        public int TargetHumidity
+        {
+            get => _targetHumidity;
+            set
+            {
+                _targetHumidity = value;
+                OnPropertyChanged();
+            }
+        }
+        public int HumidityHysterisis
+        {
+            get => _humidityHysterisis;
+            set
+            {
+                _humidityHysterisis = value;
+                OnPropertyChanged();
+            }
+        }
+        public int AcBackupPoint
+        {
+            get => _acBackupPoint;
+            set
+            {
+                _acBackupPoint = value;
+                OnPropertyChanged();
+            }
+        }
+        public int AcRecoveredPoint
+        {
+            get => _acRecoveredPoint;
+            set
+            {
+                _acRecoveredPoint = value;
+                OnPropertyChanged();
+            }
+        }
+        public int BatteryCapacityAh
+        {
+            get => _batteryCapacityAh;
+            set
+            {
+                _batteryCapacityAh = value;
+                OnPropertyChanged();
+            }
+        }
+        public float BatteryEndingAmps
+        {
+            get => _batteryEndingAmps;
+            set
+            {
+                _batteryEndingAmps = value;
+                OnPropertyChanged();
+            }
+        }
+        public float BatteryAbsorbVoltage
+        {
+            get => _batteryAbsorbVoltage;
+            set
+            {
+                _batteryAbsorbVoltage = value;
+                OnPropertyChanged();
+            }
+        }
+
+        
+        public EEPROM()
+        {
+            this.PropertyChanged += ValidateProperty;
         }
 
         internal void ParseLogLine(string line)
@@ -157,8 +273,42 @@ namespace FoxHollow.TelescopePowerMonitor.DeviceClient
             else if (variable.Equals("R2Actual", StringComparison.InvariantCultureIgnoreCase)) 
                 this.R2Actual = Int32.Parse(strValue);
 
-            else if (variable.Equals("AmpDigitalOffset", StringComparison.InvariantCultureIgnoreCase)) 
-                this.AmpDigitalOffset = Int32.Parse(strValue);
+            else if (variable.Equals("AmpDigitalOffset1", StringComparison.InvariantCultureIgnoreCase)) 
+                this.AmpDigitalOffset1 = Int32.Parse(strValue);
+            
+            else if (variable.Equals("AmpDigitalOffset2", StringComparison.InvariantCultureIgnoreCase)) 
+                this.AmpDigitalOffset2 = Int32.Parse(strValue);
+            
+            else if (variable.Equals("AmpDigitalOffset3", StringComparison.InvariantCultureIgnoreCase)) 
+                this.AmpDigitalOffset3 = Int32.Parse(strValue);
+
+            else if (variable.Equals("TemperatureCalibration", StringComparison.InvariantCultureIgnoreCase))
+                this.TemperatureCalibration = Single.Parse(strValue);
+
+            else if (variable.Equals("HumidityCalibration", StringComparison.InvariantCultureIgnoreCase))
+                this.HumidityCalibration = Single.Parse(strValue);
+
+            else if (variable.Equals("TargetHumidity", StringComparison.InvariantCultureIgnoreCase))
+                this.TargetHumidity = Int32.Parse(strValue);
+
+            else if (variable.Equals("HumidityHysterisis", StringComparison.InvariantCultureIgnoreCase))
+                this.HumidityHysterisis = Int32.Parse(strValue);
+
+            else if (variable.Equals("AcBackupPoint", StringComparison.InvariantCultureIgnoreCase))
+                this.AcBackupPoint = Int32.Parse(strValue);
+
+            else if (variable.Equals("AcRecoveredPoint", StringComparison.InvariantCultureIgnoreCase))
+                this.AcRecoveredPoint = Int32.Parse(strValue);
+
+            else if (variable.Equals("BatteryCapacityAh", StringComparison.InvariantCultureIgnoreCase))
+                this.BatteryCapacityAh = Int32.Parse(strValue);
+
+            else if (variable.Equals("BatteryEndingAmps", StringComparison.InvariantCultureIgnoreCase))
+                this.BatteryEndingAmps = Single.Parse(strValue);
+
+            else if (variable.Equals("BatteryAbsorbVoltage", StringComparison.InvariantCultureIgnoreCase))
+                this.BatteryAbsorbVoltage = Single.Parse(strValue);
+
 
 
             this.ParseSuccess = true;
@@ -166,5 +316,20 @@ namespace FoxHollow.TelescopePowerMonitor.DeviceClient
 
         protected void OnPropertyChanged([CallerMemberName] string name = null)
             => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
+
+        private void ValidateProperty(object sender, System.ComponentModel.PropertyChangedEventArgs e)
+        {
+            if (e.PropertyName == nameof(this.AcBackupPoint))
+            {
+                if (this.AcBackupPoint > this.AcRecoveredPoint)
+                    this.AcRecoveredPoint = this.AcBackupPoint + 1;
+            }
+
+            if (e.PropertyName == nameof(this.AcRecoveredPoint))
+            {
+                if (this.AcRecoveredPoint < this.AcBackupPoint)
+                    this.AcBackupPoint = this.AcRecoveredPoint - 1;
+            }
+        }
     }
 }

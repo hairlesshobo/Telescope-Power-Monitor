@@ -37,6 +37,7 @@
 // <ISO_DTM>|<UptimeSeconds>|CONFIG|TargetHumidity|<value>
 // <ISO_DTM>|<UptimeSeconds>|CONFIG|HumidityHysterisis|<value>
 // <ISO_DTM>|<UptimeSeconds>|CONFIG|AcBackupPoint|<value>
+// <ISO_DTM>|<UptimeSeconds>|CONFIG|AcRecoveredPoint|<value>
 // <ISO_DTM>|<UptimeSeconds>|CONFIG|BatteryCapacityAh|<value>
 // <ISO_DTM>|<UptimeSeconds>|CONFIG|BatteryEndingAmps|<value>
 // <ISO_DTM>|<UptimeSeconds>|CONFIG|BatteryAbsorbVoltage|<value>

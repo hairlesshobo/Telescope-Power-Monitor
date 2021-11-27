@@ -8,7 +8,7 @@
         xmlns:xctk="http://schemas.xceed.com/wpf/xaml/toolkit"
         mc:Ignorable="d"
         Title="Telescope Power Monitor v2" 
-        Height="450" 
+        Height="500" 
         Width="479" 
         Loaded="Window_Loaded" 
         ResizeMode="CanMinimize" 
@@ -235,7 +235,7 @@
                                 <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
                             <Label Grid.Column="0" Content="Readings to Average: " Margin="0,5,0,0" FontWeight="Bold" Width="140"/>
-                            <Slider Grid.Column="1" TickPlacement="BottomRight" IsSnapToTickEnabled="True" Margin="0,0,5,0" Minimum="2" Maximum="15" SmallChange="1" Value="{Binding tpmClient.DeviceConfig.AverageReadingCount, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}" IsEnabled="{Binding tpmClient.DeviceConfig.EepromRead, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}" LargeChange="8"/>
+                            <Slider Grid.Column="1" TickPlacement="BottomRight" IsSnapToTickEnabled="True" Margin="0,6,5,0" Minimum="2" Maximum="15" SmallChange="1" Value="{Binding tpmClient.DeviceConfig.AverageReadingCount, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}" IsEnabled="{Binding tpmClient.DeviceConfig.EepromRead, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}" LargeChange="8"/>
                             <Label Grid.Column="2" MinWidth="30" Content="{Binding tpmClient.DeviceConfig.AverageReadingCount, Mode=TwoWay, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}, UpdateSourceTrigger=PropertyChanged, ValidatesOnNotifyDataErrors=False}" FontSize="16" FontFamily="Consolas" Margin="5,0" HorizontalContentAlignment="Right"/>
                         </Grid>
 
@@ -246,7 +246,7 @@
                                 <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
                             <Label Grid.Column="0" Content="Update Frequency: " Margin="0,5,0,0" FontWeight="Bold" Width="140"/>
-                            <Slider Grid.Column="1" Minimum="1" Maximum="20" TickPlacement="BottomRight" TickFrequency="1" Value="{Binding tpmClient.DeviceConfig.UpdateFrequency, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}" IsSnapToTickEnabled="True" LargeChange="2" Margin="0,0,5,0" SmallChange="1" IsEnabled="{Binding tpmClient.DeviceConfig.EepromRead, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}"/>
+                            <Slider Grid.Column="1" Minimum="1" Maximum="20" TickPlacement="BottomRight" TickFrequency="1" Value="{Binding tpmClient.DeviceConfig.UpdateFrequency, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}" IsSnapToTickEnabled="True" LargeChange="2" Margin="0,6,5,0" SmallChange="1" IsEnabled="{Binding tpmClient.DeviceConfig.EepromRead, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}"/>
                             <Label Grid.Column="2" MinWidth="30" Content="{Binding tpmClient.DeviceConfig.UpdateFrequency, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}" FontSize="16" FontFamily="Consolas" Margin="5,0" HorizontalContentAlignment="Right"/>
                         </Grid>
 
@@ -257,7 +257,7 @@
                                 <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
                             <Label Grid.Column="0" Content="Write Frequency: " Margin="0,5,0,0" FontWeight="Bold" Width="140"/>
-                            <Slider Grid.Column="1" Minimum="1" Maximum="15" TickPlacement="BottomRight" Value="{Binding tpmClient.DeviceConfig.WriteInterval, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}" IsSnapToTickEnabled="True" LargeChange="5" Margin="0,0,5,0" SmallChange="1" IsEnabled="{Binding tpmClient.DeviceConfig.EepromRead, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}"/>
+                            <Slider Grid.Column="1" Minimum="1" Maximum="15" TickPlacement="BottomRight" Value="{Binding tpmClient.DeviceConfig.WriteInterval, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}" IsSnapToTickEnabled="True" LargeChange="5" Margin="0,6,5,0" SmallChange="1" IsEnabled="{Binding tpmClient.DeviceConfig.EepromRead, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}"/>
                             <Label Grid.Column="2" MinWidth="30" Content="{Binding tpmClient.DeviceConfig.WriteInterval, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}" FontSize="16" FontFamily="Consolas" Margin="5,0" HorizontalContentAlignment="Right"/>
                         </Grid>
 
@@ -267,9 +267,31 @@
                                 <ColumnDefinition Width="*"/>
                                 <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
-                            <Label Grid.Column="0" Content="Current Digital Offset: " Margin="0,5,0,0" FontWeight="Bold" Width="140"/>
-                            <Slider Grid.Column="1" Minimum="-5" Maximum="5" TickPlacement="BottomRight" Value="{Binding tpmClient.DeviceConfig.AmpDigitalOffset, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}" IsSnapToTickEnabled="True" Margin="0,0,5,0" SmallChange="1" IsEnabled="{Binding tpmClient.DeviceConfig.EepromRead, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}"/>
-                            <Label Grid.Column="2" MinWidth="30" Content="{Binding tpmClient.DeviceConfig.AmpDigitalOffset, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}" FontSize="16" FontFamily="Consolas" Margin="5,0" HorizontalContentAlignment="Right"/>
+                            <Label Grid.Column="0" Content="Target Humidity: " Margin="0,5,0,0" FontWeight="Bold" Width="140"/>
+                            <Slider Grid.Column="1" Minimum="10" Maximum="90" TickPlacement="BottomRight" Value="{Binding tpmClient.DeviceConfig.TargetHumidity, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}" IsSnapToTickEnabled="True" LargeChange="10" Margin="0,6,5,0" SmallChange="5" IsEnabled="{Binding tpmClient.DeviceConfig.EepromRead, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}"/>
+                            <Label Grid.Column="2" MinWidth="30" Content="{Binding tpmClient.DeviceConfig.TargetHumidity, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}" FontSize="16" FontFamily="Consolas" Margin="5,0" HorizontalContentAlignment="Right"/>
+                        </Grid>
+
+                        <Grid MinHeight="30">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <Label Grid.Column="0" Content="AC Backup Point: " Margin="0,5,0,0" FontWeight="Bold" Width="140"/>
+                            <Slider Grid.Column="1" TickPlacement="BottomRight" Value="{Binding tpmClient.DeviceConfig.AcBackupPoint, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}" IsSnapToTickEnabled="True" LargeChange="10" Margin="0,6,5,0" SmallChange="5" IsEnabled="{Binding tpmClient.DeviceConfig.EepromRead, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}" Maximum="100"/>
+                            <Label Grid.Column="2" MinWidth="30" Content="{Binding tpmClient.DeviceConfig.AcBackupPoint, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}" FontSize="16" FontFamily="Consolas" Margin="5,0" HorizontalContentAlignment="Right"/>
+                        </Grid>
+
+                        <Grid MinHeight="30">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <Label Grid.Column="0" Content="AC Recovered Point: " Margin="0,5,0,0" FontWeight="Bold" Width="140"/>
+                            <Slider Grid.Column="1" Maximum="100" TickPlacement="BottomRight" Value="{Binding tpmClient.DeviceConfig.AcRecoveredPoint, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}" IsSnapToTickEnabled="True" LargeChange="10" Margin="0,6,5,0" SmallChange="5" IsEnabled="{Binding tpmClient.DeviceConfig.EepromRead, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}"/>
+                            <Label Grid.Column="2" MinWidth="30" Content="{Binding tpmClient.DeviceConfig.AcRecoveredPoint, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}" FontSize="16" FontFamily="Consolas" Margin="5,0" HorizontalContentAlignment="Right"/>
                         </Grid>
 
                         <Grid>
@@ -283,15 +305,77 @@
                                 <RowDefinition Height="Auto"/>
                             </Grid.RowDefinitions>
 
+                            <Label Grid.Column="0" Content="Batt Amp Offset: " Margin="0,5,0,0" FontWeight="Bold" HorizontalContentAlignment="Center"/>
+                            <Label Grid.Column="1" Content="Load Amp Offset: " Margin="0,5,0,0" FontWeight="Bold" HorizontalContentAlignment="Center"/>
+                            <Label Grid.Column="2" Content="Solar Amp Offset: " Margin="0,5,0,0" FontWeight="Bold" HorizontalContentAlignment="Center"/>
+
+                            <xctk:IntegerUpDown Grid.Column="0" Grid.Row="1" Margin="10,0" Text="{Binding tpmClient.DeviceConfig.AmpDigitalOffset1, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}" VerticalAlignment="Center" Minimum="-5" Maximum="5" Increment="1" IsEnabled="{Binding tpmClient.DeviceConfig.EepromRead, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}" />
+                            <xctk:IntegerUpDown Grid.Column="1" Grid.Row="1" Margin="10,0" Text="{Binding tpmClient.DeviceConfig.AmpDigitalOffset2, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}" VerticalAlignment="Center" Minimum="-5" Maximum="5" Increment="1" IsEnabled="{Binding tpmClient.DeviceConfig.EepromRead, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}" />
+                            <xctk:IntegerUpDown Grid.Column="2" Grid.Row="1" Margin="10,0" Text="{Binding tpmClient.DeviceConfig.AmpDigitalOffset3, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}" VerticalAlignment="Center" Minimum="-5" Maximum="5" Increment="1" IsEnabled="{Binding tpmClient.DeviceConfig.EepromRead, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}" />
+                        </Grid>
+
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="1*"/>
+                                <ColumnDefinition Width="1*"/>
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+
                             <Label Grid.Column="0" Content="R1 Value: " Margin="0,5,0,0" FontWeight="Bold" HorizontalContentAlignment="Center"/>
                             <Label Grid.Column="1" Content="R2 Value: " Margin="0,5,0,0" FontWeight="Bold" HorizontalContentAlignment="Center"/>
-                            <Label Grid.Column="2" Content="Voltage Cal: " Margin="0,5,0,0" FontWeight="Bold" HorizontalContentAlignment="Center"/>
 
-                            <xctk:IntegerUpDown Grid.Column="0" Grid.Row="1" Margin="10,0" Text="{Binding tpmClient.DeviceConfig.R1Actual, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}" VerticalAlignment="Center" IsEnabled="{Binding tpmClient.DeviceConfig.EepromRead, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}" />
-                            <xctk:IntegerUpDown Grid.Column="1" Grid.Row="1" Margin="10,0" Text="{Binding tpmClient.DeviceConfig.R2Actual, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}" VerticalAlignment="Center" IsEnabled="{Binding tpmClient.DeviceConfig.EepromRead, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}" />
-                            <xctk:DecimalUpDown Grid.Column="2" Grid.Row="1" Margin="10,0" Text="{Binding tpmClient.DeviceConfig.VoltageCalibration, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}" VerticalAlignment="Center" Maximum="1" Minimum="-1" Increment="0.0005" IsEnabled="{Binding tpmClient.DeviceConfig.EepromRead, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}" />
+                            <xctk:IntegerUpDown Grid.Column="0" Grid.Row="1" Margin="10,0" Text="{Binding tpmClient.DeviceConfig.R1Actual, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}" VerticalAlignment="Center" Minimum="0" Maximum="100000" IsEnabled="{Binding tpmClient.DeviceConfig.EepromRead, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}" />
+                            <xctk:IntegerUpDown Grid.Column="1" Grid.Row="1" Margin="10,0" Text="{Binding tpmClient.DeviceConfig.R2Actual, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}" VerticalAlignment="Center" Minimum="0" Maximum="100000" IsEnabled="{Binding tpmClient.DeviceConfig.EepromRead, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}" />
                         </Grid>
                         
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="1*"/>
+                                <ColumnDefinition Width="1*"/>
+                                <ColumnDefinition Width="1*"/>
+                                <ColumnDefinition Width="1*"/>
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+
+                            <Label Grid.Column="0" Content="Voltage Cal: " Margin="0,5,0,0" FontWeight="Bold" HorizontalContentAlignment="Center"/>
+                            <Label Grid.Column="1" Content="Temperature Cal: " Margin="0,5,0,0" FontWeight="Bold" HorizontalContentAlignment="Center"/>
+                            <Label Grid.Column="2" Content="Humidity Cal: " Margin="0,5,0,0" FontWeight="Bold" HorizontalContentAlignment="Center"/>
+                            <Label Grid.Column="3" Content="Hum Hysterisis: " Margin="0,5,0,0" FontWeight="Bold" HorizontalContentAlignment="Center"/>
+
+                            <xctk:DecimalUpDown Grid.Column="0" Grid.Row="1" Margin="10,0" Text="{Binding tpmClient.DeviceConfig.VoltageCalibration, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}" VerticalAlignment="Center" Maximum="1" Minimum="-1" Increment="0.0005" IsEnabled="{Binding tpmClient.DeviceConfig.EepromRead, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}" />
+                            <xctk:DecimalUpDown Grid.Column="1" Grid.Row="1" Margin="10,0" Text="{Binding tpmClient.DeviceConfig.TemperatureCalibration, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}" VerticalAlignment="Center" Maximum="2" Minimum="-2" Increment="0.0005" IsEnabled="{Binding tpmClient.DeviceConfig.EepromRead, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}" />
+                            <xctk:DecimalUpDown Grid.Column="2" Grid.Row="1" Margin="10,0" Text="{Binding tpmClient.DeviceConfig.HumidityCalibration, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}" VerticalAlignment="Center" Maximum="2" Minimum="-2" Increment="0.0005" IsEnabled="{Binding tpmClient.DeviceConfig.EepromRead, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}" />
+                            <xctk:IntegerUpDown Grid.Column="3" Grid.Row="1" Margin="10,0" Text="{Binding tpmClient.DeviceConfig.HumidityHysterisis, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}" VerticalAlignment="Center" Minimum="4" Maximum="10" IsEnabled="{Binding tpmClient.DeviceConfig.EepromRead, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}" />
+                        </Grid>
+
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="1*"/>
+                                <ColumnDefinition Width="1*"/>
+                                <ColumnDefinition Width="1*"/>
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+
+                            <Label Grid.Column="0" Content="Batt Capacity (Ah): " Margin="0,5,0,0" FontWeight="Bold" HorizontalContentAlignment="Center"/>
+                            <Label Grid.Column="1" Content="Ending Amps: " Margin="0,5,0,0" FontWeight="Bold" HorizontalContentAlignment="Center"/>
+                            <Label Grid.Column="2" Content="Absorb Voltage: " Margin="0,5,0,0" FontWeight="Bold" HorizontalContentAlignment="Center"/>
+
+                            <xctk:IntegerUpDown Grid.Column="0" Grid.Row="1" Margin="10,0" Text="{Binding tpmClient.DeviceConfig.BatteryCapacityAh, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}" VerticalAlignment="Center" Minimum="1" Maximum="250" Increment="1" IsEnabled="{Binding tpmClient.DeviceConfig.EepromRead, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}" />
+                            <xctk:DecimalUpDown Grid.Column="1" Grid.Row="1" Margin="10,0" Text="{Binding tpmClient.DeviceConfig.BatteryEndingAmps, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}" VerticalAlignment="Center" Minimum="0.1" Maximum="6" Increment="0.1" IsEnabled="{Binding tpmClient.DeviceConfig.EepromRead, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}" />
+                            <xctk:DecimalUpDown Grid.Column="2" Grid.Row="1" Margin="10,0" Text="{Binding tpmClient.DeviceConfig.BatteryAbsorbVoltage, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}" VerticalAlignment="Center" Minimum="12.0" Maximum="15.0" Increment="0.1" IsEnabled="{Binding tpmClient.DeviceConfig.EepromRead, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}" />
+                        </Grid>
+
+
+
                     </StackPanel>
                 </DockPanel>
             </TabItem>
