@@ -91,12 +91,34 @@
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </ApplicationDefinition>
+    <Compile Include="Converters\SwitchBackgroundConverter.cs" />
+    <Compile Include="Converters\SwitchValueConverter.cs" />
+    <Compile Include="Converters\UptimeConverter.cs" />
+    <Compile Include="Displays\SwitchDisplay.xaml.cs">
+      <DependentUpon>SwitchDisplay.xaml</DependentUpon>
+    </Compile>
     <Compile Include="Formatting.cs" />
     <Compile Include="Converters\PercentValueConverter.cs" />
     <Compile Include="Converters\TemperatureValueConverter.cs" />
+    <Compile Include="Displays\TemperatureDisplay.xaml.cs">
+      <DependentUpon>TemperatureDisplay.xaml</DependentUpon>
+    </Compile>
     <Compile Include="Settings.cs" />
     <Compile Include="Converters\AmperageValueConverter.cs" />
     <Compile Include="Converters\VoltageValueConverter.cs" />
+    <Compile Include="Displays\AmperageDisplay.xaml.cs">
+      <DependentUpon>AmperageDisplay.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Displays\PercentageDisplay.xaml.cs">
+      <DependentUpon>PercentageDisplay.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Displays\VoltageDisplay.xaml.cs">
+      <DependentUpon>VoltageDisplay.xaml</DependentUpon>
+    </Compile>
+    <Page Include="Displays\SwitchDisplay.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
     <Page Include="MainWindow.xaml">
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
@@ -109,6 +131,22 @@
       <DependentUpon>MainWindow.xaml</DependentUpon>
       <SubType>Code</SubType>
     </Compile>
+    <Page Include="Displays\AmperageDisplay.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="Displays\TemperatureDisplay.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="Displays\PercentageDisplay.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="Displays\VoltageDisplay.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Properties\AssemblyInfo.cs">

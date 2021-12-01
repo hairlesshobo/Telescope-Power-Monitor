@@ -22,11 +22,19 @@
         <converters:VoltageValueConverter x:Key="VoltageValueConverter"/>
         <converters:TemperatureValueConverter x:Key="TemperatureValueConverter"/>
         <converters:PercentValueConverter x:Key="PercentValueConverter"/>
+        <converters:UptimeConverter x:Key="UptimeConverter"/>
+        <converters:SwitchValueConverter x:Key="SwitchValueConverter"/>
+        <converters:SwitchBackgroundConverter x:Key="SwitchBackgroundConverter"/>
+        <local:App x:Key="App"/>
     </Window.Resources>
     <DockPanel>
         <StatusBar DockPanel.Dock="Bottom" Height="22">
             <StatusBarItem>
                 <TextBlock x:Name="connectionStatusBlock" Text="Disconnected" />
+            </StatusBarItem>
+            <Separator Width="1"/>
+            <StatusBarItem x:Name="timeDeltaStatusItem" MouseDoubleClick="timeDeltaStatusItem_MouseDoubleClick">
+                <TextBlock Text="{Binding TpmClient.Status.TimeDelta, FallbackValue=0 seconds, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}, StringFormat=0 seconds}" ToolTip="How accurately the time is set on the device. Positive value indicates that device time is ahead, negatiuve behind. Double click to update device time." />
             </StatusBarItem>
             <Separator Width="1"/>
             <StatusBarItem HorizontalContentAlignment="Right" Padding="3">
@@ -47,260 +55,142 @@
                             <RowDefinition Height="Auto"/>
                             <RowDefinition Height="Auto"/>
                             <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
                         </Grid.RowDefinitions>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="1*"/>
+                            <ColumnDefinition Width="1*"/>
+                        </Grid.ColumnDefinitions>
+
+                        <local:VoltageDisplay Grid.Row="0" Grid.Column="0" Title="Voltage" Margin="2,0,0,0" Value="{Binding TpmClient.Power.Voltage, Mode=OneWay}" IsActive="{Binding TpmClient.Connected, Mode=OneWay}"/>
+                        <local:PercentageDisplay Grid.Row="0" Grid.Column="1" Title="Battery SOC" Margin="0,0,2,0" Value="{Binding TpmClient.Power.BatterySoc, Mode=OneWay}" IsActive="{Binding TpmClient.Connected, Mode=OneWay}"/>
+
+                        <local:AmperageDisplay Grid.Row="1" Grid.Column="0" Title="Load Amperage" Margin="2,0,0,0" Value="{Binding TpmClient.Power.LoadAmperage, Mode=OneWay}" IsActive="{Binding TpmClient.Connected, Mode=OneWay}"/>
+                        <local:AmperageDisplay Grid.Row="1" Grid.Column="1" Title="Battery Amperage" Margin="0,0,2,0" Value="{Binding TpmClient.Power.BatteryAmperage, Mode=OneWay}" IsActive="{Binding TpmClient.Connected, Mode=OneWay}"/>
+
+                        <local:TemperatureDisplay Grid.Row="2" Grid.Column="0" Title="Current Temperature" Margin="2,0,0,0" Value="{Binding TpmClient.Environment.Temperature, Mode=OneWay}" IsActive="{Binding TpmClient.Connected, Mode=OneWay}"/>
+                        <local:PercentageDisplay Grid.Row="2" Grid.Column="1" Title="Current Humidity" Margin="0,0,2,0" Value="{Binding TpmClient.Environment.Humidity, Mode=OneWay}" IsActive="{Binding TpmClient.Connected, Mode=OneWay}"/>
+
+                        <local:AmperageDisplay Grid.Row="3" Grid.Column="0" Title="Solar Amperage" Margin="2,0,0,0" Value="{Binding TpmClient.Power.SolarAmperage, Mode=OneWay}" IsActive="{Binding TpmClient.Connected, Mode=OneWay}"/>
+                        <local:AmperageDisplay Grid.Row="3" Grid.Column="1" Title="AC Amperage" Margin="0,0,2,0" Value="{Binding TpmClient.Power.AcAmperage, Mode=OneWay}" IsActive="{Binding TpmClient.Connected, Mode=OneWay}"/>
                         
-                        <Grid Grid.Row="0">
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto"/>
-                            </Grid.RowDefinitions>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="1*"/>
-                                <ColumnDefinition Width="1*"/>
-                            </Grid.ColumnDefinitions>
-
-                            <Grid Grid.Row="0" Grid.Column="0" Margin="2,0,0,0">
-                                <Grid.RowDefinitions>
-                                    <RowDefinition Height="Auto"/>
-                                    <RowDefinition Height="Auto"/>
-                                    <RowDefinition Height="Auto"/>
-                                    <RowDefinition Height="Auto"/>
-                                </Grid.RowDefinitions>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="1*"/>
-                                    <ColumnDefinition Width="1*"/>
-                                </Grid.ColumnDefinitions>
-                                <Label Grid.Row="0" Grid.ColumnSpan="2" Content="Current Voltage" Background="LightGray" Foreground="Black" FontSize="13" Padding="0,0,0,3" HorizontalContentAlignment="Center" FontWeight="Bold"/>
-
-                                <Rectangle Grid.Row="1" Grid.ColumnSpan="2" Fill="#FF000000" MinHeight="28" />
-                                <TextBlock Grid.Row="1" Grid.ColumnSpan="2" Name="voltageAvgBlock" Text="----" HorizontalAlignment="Center" FontSize="48" FontWeight="Bold" Foreground="White"/>
-
-                                <Label Grid.Row="2" Grid.Column="0" Content="Min" Background="LightGray" Foreground="Black" FontSize="10.667" Padding="0,0,0,3" HorizontalContentAlignment="Center" FontWeight="Bold"/>
-                                <Rectangle Grid.Row="3" Grid.Column="0" Fill="#FF000000" MinHeight="28" />
-                                <TextBlock Grid.Row="3" Grid.Column="0" Name="voltageMinBlock" Text="----" HorizontalAlignment="Center" FontSize="24" FontWeight="Bold" Foreground="White"/>
-
-                                <Label Grid.Row="2" Grid.Column="1" Content="Max" Background="LightGray" Foreground="Black" FontSize="10.667" Padding="0,0,0,3" HorizontalContentAlignment="Center" FontWeight="Bold"/>
-                                <Rectangle Grid.Row="3" Grid.Column="1" Fill="#FF000000" MinHeight="28" />
-                                <TextBlock Grid.Row="3" Grid.Column="1" Name="voltageMaxBlock" Text="----" HorizontalAlignment="Center" FontSize="24" FontWeight="Bold" Foreground="White"/>
-                            </Grid>
-
-                            <Grid Grid.Row="0" Grid.Column="1" Margin="0,0,2,0">
-                                <Grid.RowDefinitions>
-                                    <RowDefinition Height="Auto"/>
-                                    <RowDefinition Height="Auto"/>
-                                    <RowDefinition Height="Auto"/>
-                                    <RowDefinition Height="Auto"/>
-                                </Grid.RowDefinitions>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="1*"/>
-                                    <ColumnDefinition Width="1*"/>
-                                </Grid.ColumnDefinitions>
-                                <Label Grid.Row="0" Grid.ColumnSpan="2" Content="Battery SOC" Background="LightGray" Foreground="Black" FontSize="13" Padding="0,0,0,3" HorizontalContentAlignment="Center" FontWeight="Bold"/>
-
-                                <Rectangle Grid.Row="1" Grid.ColumnSpan="2" Fill="#FF000000" MinHeight="28" />
-                                <TextBlock Grid.Row="1" Grid.ColumnSpan="2" Name="batterySocAvgBlock" Text="----" HorizontalAlignment="Center" FontSize="48" FontWeight="Bold" Foreground="White"/>
-
-                                <Label Grid.Row="2" Grid.Column="0" Content="Min" Background="LightGray" Foreground="Black" FontSize="10.667" Padding="0,0,0,3" HorizontalContentAlignment="Center" FontWeight="Bold"/>
-                                <Rectangle Grid.Row="3" Grid.Column="0" Fill="#FF000000" MinHeight="28" />
-                                <TextBlock Grid.Row="3" Grid.Column="0" Name="batterySocMinBlock" Text="----" HorizontalAlignment="Center" FontSize="24" FontWeight="Bold" Foreground="White"/>
-
-                                <Label Grid.Row="2" Grid.Column="1" Content="Max" Background="LightGray" Foreground="Black" FontSize="10.667" Padding="0,0,0,3" HorizontalContentAlignment="Center" FontWeight="Bold"/>
-                                <Rectangle Grid.Row="3" Grid.Column="1" Fill="#FF000000" MinHeight="28" />
-                                <TextBlock Grid.Row="3" Grid.Column="1" Name="batterySocMaxBlock" Text="----" HorizontalAlignment="Center" FontSize="24" FontWeight="Bold" Foreground="White"/>
-                            </Grid>
-
-                        </Grid>
-
-                        <Grid Grid.Row="1">
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto"/>
-                            </Grid.RowDefinitions>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="1*"/>
-                                <ColumnDefinition Width="1*"/>
-                            </Grid.ColumnDefinitions>
-
-
-                            <Grid Grid.Row="0" Grid.Column="0" Margin="2,0,0,0">
-                                <Grid.RowDefinitions>
-                                    <RowDefinition Height="Auto"/>
-                                    <RowDefinition Height="Auto"/>
-                                    <RowDefinition Height="Auto"/>
-                                    <RowDefinition Height="Auto"/>
-                                </Grid.RowDefinitions>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="1*"/>
-                                    <ColumnDefinition Width="1*"/>
-                                </Grid.ColumnDefinitions>
-                                <Label Grid.Row="0" Grid.ColumnSpan="2" Content="Current Temperature" Background="LightGray" Foreground="Black" FontSize="13" Padding="0,0,0,3" HorizontalContentAlignment="Center" FontWeight="Bold"/>
-
-                                <Rectangle Grid.Row="1" Grid.ColumnSpan="2" Fill="#FF000000" MinHeight="28" />
-                                <TextBlock Grid.Row="1" Grid.ColumnSpan="2" Name="temperageAvgBlock" Text="----" HorizontalAlignment="Center" FontSize="48" FontWeight="Bold" Foreground="White"/>
-
-                                <Label Grid.Row="2" Grid.Column="0" Content="Min" Background="LightGray" Foreground="Black" FontSize="10.667" Padding="0,0,0,3" HorizontalContentAlignment="Center" FontWeight="Bold"/>
-                                <Rectangle Grid.Row="3" Grid.Column="0" Fill="#FF000000" MinHeight="28" />
-                                <TextBlock Grid.Row="3" Grid.Column="0" Name="temperageMinBlock" Text="----" HorizontalAlignment="Center" FontSize="24" FontWeight="Bold" Foreground="White"/>
-
-                                <Label Grid.Row="2" Grid.Column="1" Content="Max" Background="LightGray" Foreground="Black" FontSize="10.667" Padding="0,0,0,3" HorizontalContentAlignment="Center" FontWeight="Bold"/>
-                                <Rectangle Grid.Row="3" Grid.Column="1" Fill="#FF000000" MinHeight="28" />
-                                <TextBlock Grid.Row="3" Grid.Column="1" Name="temperageMaxBlock" Text="----" HorizontalAlignment="Center" FontSize="24" FontWeight="Bold" Foreground="White"/>
-                            </Grid>
-
-                            <Grid Grid.Row="0" Grid.Column="1" Margin="0,0,2,0">
-                                <Grid.RowDefinitions>
-                                    <RowDefinition Height="Auto"/>
-                                    <RowDefinition Height="Auto"/>
-                                    <RowDefinition Height="Auto"/>
-                                    <RowDefinition Height="Auto"/>
-                                </Grid.RowDefinitions>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="1*"/>
-                                    <ColumnDefinition Width="1*"/>
-                                </Grid.ColumnDefinitions>
-                                <Label Grid.Row="0" Grid.ColumnSpan="2" Content="Current Humidity" Background="LightGray" Foreground="Black" FontSize="13" Padding="0,0,0,3" HorizontalContentAlignment="Center" FontWeight="Bold"/>
-
-                                <Rectangle Grid.Row="1" Grid.ColumnSpan="2" Fill="#FF000000" MinHeight="28" />
-                                <TextBlock Grid.Row="1" Grid.ColumnSpan="2" Name="humidityAvgBlock" Text="----" HorizontalAlignment="Center" FontSize="48" FontWeight="Bold" Foreground="White"/>
-
-                                <Label Grid.Row="2" Grid.Column="0" Content="Min" Background="LightGray" Foreground="Black" FontSize="10.667" Padding="0,0,0,3" HorizontalContentAlignment="Center" FontWeight="Bold"/>
-                                <Rectangle Grid.Row="3" Grid.Column="0" Fill="#FF000000" MinHeight="28" />
-                                <TextBlock Grid.Row="3" Grid.Column="0" Name="humidityMinBlock" Text="----" HorizontalAlignment="Center" FontSize="24" FontWeight="Bold" Foreground="White"/>
-
-                                <Label Grid.Row="2" Grid.Column="1" Content="Max" Background="LightGray" Foreground="Black" FontSize="10.667" Padding="0,0,0,3" HorizontalContentAlignment="Center" FontWeight="Bold"/>
-                                <Rectangle Grid.Row="3" Grid.Column="1" Fill="#FF000000" MinHeight="28" />
-                                <TextBlock Grid.Row="3" Grid.Column="1" Name="humidityMaxBlock" Text="----" HorizontalAlignment="Center" FontSize="24" FontWeight="Bold" Foreground="White"/>
-                            </Grid>
-                        </Grid>
-
-                        <Grid Grid.Row="2">
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto"/>
-                            </Grid.RowDefinitions>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="1*"/>
-                                <ColumnDefinition Width="1*"/>
-                                <ColumnDefinition Width="1*"/>
-                                <ColumnDefinition Width="1*"/>
-                            </Grid.ColumnDefinitions>
-
-                            <Grid Grid.Row="2" Grid.Column="0" Margin="2,0,0,0">
-                                <Grid.RowDefinitions>
-                                    <RowDefinition Height="Auto"/>
-                                    <RowDefinition Height="Auto"/>
-                                    <RowDefinition Height="Auto"/>
-                                    <RowDefinition Height="Auto"/>
-                                </Grid.RowDefinitions>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="1*"/>
-                                    <ColumnDefinition Width="1*"/>
-                                </Grid.ColumnDefinitions>
-                                <Label Grid.Row="0" Grid.ColumnSpan="2" Content="Battery" Background="LightGray" Foreground="Black" FontSize="11" Padding="0,0,0,3" HorizontalContentAlignment="Center" FontWeight="Bold"/>
-
-                                <Rectangle Grid.Row="1" Grid.ColumnSpan="2" Fill="#FF000000" MinHeight="28" />
-                                <TextBlock Grid.Row="1" Grid.ColumnSpan="2" Name="batteryAmperageAvgBlock" Text="----" FontSize="36" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center"/>
-
-                                <Label Grid.Row="2" Grid.Column="0" Content="Min" Background="LightGray" Foreground="Black" FontSize="9.5" Padding="0,0,0,3" HorizontalContentAlignment="Center" FontWeight="Bold"/>
-                                <Rectangle Grid.Row="3" Grid.Column="0" Fill="#FF000000" MinHeight="28" />
-                                <TextBlock Grid.Row="3" Grid.Column="0" Name="batteryAmperageMinBlock" Text="----" HorizontalAlignment="Center" FontSize="18" FontWeight="Bold" Foreground="White"/>
-
-                                <Label Grid.Row="2" Grid.Column="1" Content="Max" Background="LightGray" Foreground="Black" FontSize="9.5" Padding="0,0,0,3" HorizontalContentAlignment="Center" FontWeight="Bold"/>
-                                <Rectangle Grid.Row="3" Grid.Column="1" Fill="#FF000000" MinHeight="28" />
-                                <TextBlock Grid.Row="3" Grid.Column="1" Name="batteryAmperageMaxBlock" Text="----" HorizontalAlignment="Center" FontSize="18" FontWeight="Bold" Foreground="White"/>
-                            </Grid>
-
-                            <Grid Grid.Row="2" Grid.Column="1" Margin="0,0">
-                                <Grid.RowDefinitions>
-                                    <RowDefinition Height="Auto"/>
-                                    <RowDefinition Height="Auto"/>
-                                    <RowDefinition Height="Auto"/>
-                                    <RowDefinition Height="Auto"/>
-                                </Grid.RowDefinitions>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="1*"/>
-                                    <ColumnDefinition Width="1*"/>
-                                </Grid.ColumnDefinitions>
-                                <Label Grid.Row="0" Grid.ColumnSpan="2" Content="Load" Background="LightGray" Foreground="Black" FontSize="11" Padding="0,0,0,3" HorizontalContentAlignment="Center" FontWeight="Bold"/>
-
-                                <Rectangle Grid.Row="1" Grid.ColumnSpan="2" Fill="#FF000000" MinHeight="28" />
-                                <TextBlock Grid.Row="1" Grid.ColumnSpan="2" Name="loadAmperageAvgBlock" Text="----" FontSize="36" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center"/>
-
-                                <Label Grid.Row="2" Grid.Column="0" Content="Min" Background="LightGray" Foreground="Black" FontSize="9.5" Padding="0,0,0,3" HorizontalContentAlignment="Center" FontWeight="Bold"/>
-                                <Rectangle Grid.Row="3" Grid.Column="0" Fill="#FF000000" MinHeight="28" />
-                                <TextBlock Grid.Row="3" Grid.Column="0" Name="loadAmperageMinBlock" Text="----" HorizontalAlignment="Center" FontSize="18" FontWeight="Bold" Foreground="White"/>
-
-                                <Label Grid.Row="2" Grid.Column="1" Content="Max" Background="LightGray" Foreground="Black" FontSize="9.5" Padding="0,0,0,3" HorizontalContentAlignment="Center" FontWeight="Bold"/>
-                                <Rectangle Grid.Row="3" Grid.Column="1" Fill="#FF000000" MinHeight="28" />
-                                <TextBlock Grid.Row="3" Grid.Column="1" Name="loadAmperageMaxBlock" Text="----" HorizontalAlignment="Center" FontSize="18" FontWeight="Bold" Foreground="White"/>
-                            </Grid>
-
-                            <Grid Grid.Row="2" Grid.Column="2" Margin="0,0">
-                                <Grid.RowDefinitions>
-                                    <RowDefinition Height="Auto"/>
-                                    <RowDefinition Height="Auto"/>
-                                    <RowDefinition Height="Auto"/>
-                                    <RowDefinition Height="Auto"/>
-                                </Grid.RowDefinitions>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="1*"/>
-                                    <ColumnDefinition Width="1*"/>
-                                </Grid.ColumnDefinitions>
-                                <Label Grid.Row="0" Grid.ColumnSpan="2" Content="Solar" Background="LightGray" Foreground="Black" FontSize="11" Padding="0,0,0,3" HorizontalContentAlignment="Center" FontWeight="Bold"/>
-
-                                <Rectangle Grid.Row="1" Grid.ColumnSpan="2" Fill="#FF000000" MinHeight="28" />
-                                <TextBlock Grid.Row="1" Grid.ColumnSpan="2" Name="solarAmperageAvgBlock" Text="----" FontSize="36" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center"/>
-
-                                <Label Grid.Row="2" Grid.Column="0" Content="Min" Background="LightGray" Foreground="Black" FontSize="9.5" Padding="0,0,0,3" HorizontalContentAlignment="Center" FontWeight="Bold"/>
-                                <Rectangle Grid.Row="3" Grid.Column="0" Fill="#FF000000" MinHeight="28" />
-                                <TextBlock Grid.Row="3" Grid.Column="0" Name="solarAmperageMinBlock" Text="----" HorizontalAlignment="Center" FontSize="18" FontWeight="Bold" Foreground="White"/>
-
-                                <Label Grid.Row="2" Grid.Column="1" Content="Max" Background="LightGray" Foreground="Black" FontSize="9.5" Padding="0,0,0,3" HorizontalContentAlignment="Center" FontWeight="Bold"/>
-                                <Rectangle Grid.Row="3" Grid.Column="1" Fill="#FF000000" MinHeight="28" />
-                                <TextBlock Grid.Row="3" Grid.Column="1" Name="solarAmperageMaxBlock" Text="----" HorizontalAlignment="Center" FontSize="18" FontWeight="Bold" Foreground="White"/>
-                            </Grid>
-
-                            <Grid Grid.Row="2" Grid.Column="3" Margin="0,0,2,0">
-                                <Grid.RowDefinitions>
-                                    <RowDefinition Height="Auto"/>
-                                    <RowDefinition Height="Auto"/>
-                                    <RowDefinition Height="Auto"/>
-                                    <RowDefinition Height="Auto"/>
-                                </Grid.RowDefinitions>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="1*"/>
-                                    <ColumnDefinition Width="1*"/>
-                                </Grid.ColumnDefinitions>
-                                <Label Grid.Row="0" Grid.ColumnSpan="2" Content="AC" Background="LightGray" Foreground="Black" FontSize="11" Padding="0,0,0,3" HorizontalContentAlignment="Center" FontWeight="Bold"/>
-
-                                <Rectangle Grid.Row="1" Grid.ColumnSpan="2" Fill="#FF000000" MinHeight="28" />
-                                <TextBlock Grid.Row="1" Grid.ColumnSpan="2" Name="acAmperageAvgBlock" Text="----" FontSize="36" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center"/>
-
-                                <Label Grid.Row="2" Grid.Column="0" Content="Min" Background="LightGray" Foreground="Black" FontSize="9.5" Padding="0,0,0,3" HorizontalContentAlignment="Center" FontWeight="Bold"/>
-                                <Rectangle Grid.Row="3" Grid.Column="0" Fill="#FF000000" MinHeight="28" />
-                                <TextBlock Grid.Row="3" Grid.Column="0" Name="acAmperageMinBlock" Text="----" HorizontalAlignment="Center" FontSize="18" FontWeight="Bold" Foreground="White"/>
-
-                                <Label Grid.Row="2" Grid.Column="1" Content="Max" Background="LightGray" Foreground="Black" FontSize="9.5" Padding="0,0,0,3" HorizontalContentAlignment="Center" FontWeight="Bold"/>
-                                <Rectangle Grid.Row="3" Grid.Column="1" Fill="#FF000000" MinHeight="28" />
-                                <TextBlock Grid.Row="3" Grid.Column="1" Name="acAmperageMaxBlock" Text="----" HorizontalAlignment="Center" FontSize="18" FontWeight="Bold" Foreground="White"/>
-                            </Grid>
-                        </Grid>
-
-                        <Grid Grid.Row="3" Margin="2,0">
+                        <Grid Grid.Row="4" Grid.Column="0" Margin="2,0,0,0">
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="Auto"/>
                             </Grid.RowDefinitions>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="1*"/>
+                            </Grid.ColumnDefinitions>
+                            <Label Grid.Row="0" Grid.Column="0" Content="Uptime" Background="LightGray" Foreground="Black" FontSize="13" Padding="0,0,0,3" HorizontalContentAlignment="Center" FontWeight="Bold"/>
+
+                            <Rectangle Grid.Row="1" Grid.Column="0" Fill="#FF000000" MinHeight="28" />
+                            <TextBlock Grid.Row="1" Grid.Column="0" Text="{Binding TpmClient.Status.LastReadUptime, Converter={StaticResource UptimeConverter}, FallbackValue=----, Mode=OneWay, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}" FontSize="24" FontWeight="Bold" Foreground="Gray" HorizontalAlignment="Center"/>
+                        </Grid>
+                        
+                        <Grid Grid.Row="4" Grid.Column="1" Margin="0,0,2,0">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+                            <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="1*"/>
                             </Grid.ColumnDefinitions>
-                            <Label Grid.Row="0" Grid.ColumnSpan="2" Content="Uptime" Background="LightGray" Foreground="Black" FontSize="13" Padding="0,0,0,3" HorizontalContentAlignment="Center" FontWeight="Bold"/>
+                            <Label Grid.Row="0" Grid.Column="0" Content="Meow" Background="LightGray" Foreground="Black" FontSize="13" Padding="0,0,0,3" HorizontalContentAlignment="Center" FontWeight="Bold"/>
 
-                            <Rectangle Grid.Row="1" Grid.ColumnSpan="2" Fill="#FF000000" MinHeight="28" />
-                            <TextBlock Grid.Row="1" Grid.ColumnSpan="2" Name="uptimeStatusBlock" Text="----" FontSize="24" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center"/>
+                            <Rectangle Grid.Row="1" Grid.Column="0" Fill="#FF000000" MinHeight="28" />
+                            <TextBlock Grid.Row="1" Grid.Column="0" Text="{Binding TpmClient.Status.LastReadDtm, FallbackValue=----, Mode=OneWay, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}, StringFormat=\{0:yyyy/MM/dd hh:mm:ss\}}" FontSize="24" FontWeight="Bold" Foreground="Gray" HorizontalAlignment="Center"/>
                         </Grid>
+
+                        <Grid Grid.Row="5" Grid.ColumnSpan="2" Margin="2,0">
+                            <Grid Grid.Row="5" Grid.Column="0" Margin="2,0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="1*"/>
+                                    <ColumnDefinition Width="1*"/>
+                                    <ColumnDefinition Width="1*"/>
+                                    <ColumnDefinition Width="1*"/>
+                                    <ColumnDefinition Width="1*"/>
+                                </Grid.ColumnDefinitions>
+
+                                <Grid Grid.Column="0">
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                    </Grid.RowDefinitions>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="1*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Label Grid.Row="0" Grid.Column="0" MouseDoubleClick="ToggleDehum_MouseDoubleClick" Content="Dehum EN" Background="LightGray" Foreground="Black" FontSize="13" Padding="0,0,0,3" HorizontalContentAlignment="Center" FontWeight="Bold"/>
+
+                                    <Rectangle Grid.Row="1" Grid.Column="0" Fill="{Binding TpmClient.Status.DehumEnabled, Converter={StaticResource SwitchBackgroundConverter}, FallbackValue=#FF000000, Mode=OneWay, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}" MinHeight="28" />
+                                    <TextBlock Grid.Row="1" Grid.Column="0" Text="{Binding TpmClient.Status.DehumEnabled, Converter={StaticResource SwitchValueConverter}, FallbackValue=----, Mode=OneWay, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}" FontSize="24" FontWeight="Bold" Foreground="Gray" HorizontalAlignment="Center"/>
+                                </Grid>
+
+                                <Grid Grid.Column="1">
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                    </Grid.RowDefinitions>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="1*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Label Grid.Row="0" Grid.Column="0" Content="Scope" MouseDoubleClick="ToggleScope_MouseDoubleClick" Background="LightGray" Foreground="Black" FontSize="13" Padding="0,0,0,3" HorizontalContentAlignment="Center" FontWeight="Bold"/>
+
+                                    <Rectangle Grid.Row="1" Grid.Column="0" Fill="{Binding TpmClient.Status.TelescopeOutState, Converter={StaticResource SwitchBackgroundConverter}, FallbackValue=#FF000000, Mode=OneWay, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}" MinHeight="28" />
+                                    <TextBlock Grid.Row="1" Grid.Column="0" Text="{Binding TpmClient.Status.TelescopeOutState, Converter={StaticResource SwitchValueConverter}, FallbackValue=----, Mode=OneWay, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}" FontSize="24" FontWeight="Bold" Foreground="Gray" HorizontalAlignment="Center"/>
+                                </Grid>
+
+                                <Grid Grid.Column="2">
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                    </Grid.RowDefinitions>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="1*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Label Grid.Row="0" Grid.Column="0" Content="Dehumidifier" MouseDoubleClick="ToggleDehumidifier_MouseDoubleClick" Background="LightGray" Foreground="Black" FontSize="13" Padding="0,0,0,3" HorizontalContentAlignment="Center" FontWeight="Bold"/>
+
+                                    <Rectangle Grid.Row="1" Grid.Column="0" Fill="{Binding TpmClient.Status.DehumOutState, Converter={StaticResource SwitchBackgroundConverter}, FallbackValue=#FF000000, Mode=OneWay, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}" MinHeight="28" />
+                                    <TextBlock Grid.Row="1" Grid.Column="0" Text="{Binding TpmClient.Status.DehumOutState, Converter={StaticResource SwitchValueConverter}, FallbackValue=----, Mode=OneWay, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}" FontSize="24" FontWeight="Bold" Foreground="Gray" HorizontalAlignment="Center"/>
+                                </Grid>
+
+                                <Grid Grid.Column="3">
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                    </Grid.RowDefinitions>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="1*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Label Grid.Row="0" Grid.Column="0" Content="Aux 1" MouseDoubleClick="ToggleAux1_MouseDoubleClick" Background="LightGray" Foreground="Black" FontSize="13" Padding="0,0,0,3" HorizontalContentAlignment="Center" FontWeight="Bold"/>
+
+                                    <Rectangle Grid.Row="1" Grid.Column="0" Fill="{Binding TpmClient.Status.Aux1OutState, Converter={StaticResource SwitchBackgroundConverter}, FallbackValue=#FF000000, Mode=OneWay, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}" MinHeight="28" />
+                                    <TextBlock Grid.Row="1" Grid.Column="0" Text="{Binding TpmClient.Status.Aux1OutState, Converter={StaticResource SwitchValueConverter}, FallbackValue=----, Mode=OneWay, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}" FontSize="24" FontWeight="Bold" Foreground="Gray" HorizontalAlignment="Center"/>
+                                </Grid>
+
+                                <Grid Grid.Column="4">
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                    </Grid.RowDefinitions>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="1*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Label Grid.Row="0" Grid.Column="0" Content="AC" MouseDoubleClick="ToggleAc_MouseDoubleClick" Background="LightGray" Foreground="Black" FontSize="13" Padding="0,0,0,3" HorizontalContentAlignment="Center" FontWeight="Bold"/>
+
+                                    <Rectangle Grid.Row="1" Grid.Column="0" Fill="{Binding TpmClient.Status.AcInState, Converter={StaticResource SwitchBackgroundConverter}, FallbackValue=#FF000000, Mode=OneWay, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}" MinHeight="28" />
+                                    <TextBlock Grid.Row="1" Grid.Column="0" Text="{Binding TpmClient.Status.AcInState, Converter={StaticResource SwitchValueConverter}, FallbackValue=----, Mode=OneWay, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}" FontSize="24" FontWeight="Bold" Foreground="Gray" HorizontalAlignment="Center"/>
+                                </Grid>
+                            </Grid>
+
+                        </Grid>
+
+
                     </Grid>
                     <StackPanel Orientation="Horizontal" Grid.Row="2">
                         <Button x:Name="button_refreshPorts" Content="Scan Serial Ports" Margin="5" Click="RefreshPortsButton_Click" Padding="7,2" HorizontalAlignment="Center"/>
-                        <ComboBox x:Name="comPortList" Margin="5" SelectionChanged="comPortList_SelectionChanged" Padding="5" HorizontalAlignment="Center" MinWidth="80"/>
+                        <ComboBox x:Name="comPortList" Margin="5" SelectionChanged="ComPortList_SelectionChanged" Padding="5" HorizontalAlignment="Center" MinWidth="80"/>
                         <Button x:Name="button_Connect" Content="Connect" HorizontalAlignment="Center" Padding="7,2" Margin="5" Click="ConnectButton_Click" />
                     </StackPanel>
                 </Grid>
@@ -311,7 +201,7 @@
             <TabItem Header="Configuration">
                 <DockPanel>
                     <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" HorizontalAlignment="Right">
-                        <Button x:Name="resetSettingsButton" Content="Reset to Default" VerticalAlignment="Center" Margin="5" Padding="7,2" Click="resetSettingsButton_Click"/>
+                        <Button x:Name="resetSettingsButton" Content="Reset to Default" VerticalAlignment="Center" Margin="5" Padding="7,2" Click="ResetSettingsButton_Click"/>
                     </StackPanel>
                     <StackPanel>
                         <Grid MinHeight="30">
@@ -403,7 +293,7 @@
                             </Grid.RowDefinitions>
                             <Label Grid.ColumnSpan="2" Grid.Row="0" Content="Log Directory: " Margin="0,5,0,0" VerticalContentAlignment="Center" FontWeight="Bold"/>
                             <TextBox x:Name="logDirectoryTextBox" Grid.Row="1" Grid.Column="1" VerticalAlignment="Center" Margin="0,0,5,0" Padding="3" Height="24" VerticalContentAlignment="Center" Text="{Binding Default.logDirectory, Source={StaticResource Settings}}" />
-                            <Button x:Name="button_logDirectoryBrowse" Grid.Row="1" Grid.Column="2" Content="Browse..." VerticalAlignment="Center" Height="24" HorizontalAlignment="Right" HorizontalContentAlignment="Center" Margin="5,0" Padding="7,2" VerticalContentAlignment="Center" Click="button_logDirectoryBrowse_Click" />
+                            <Button x:Name="button_logDirectoryBrowse" Grid.Row="1" Grid.Column="2" Content="Browse..." VerticalAlignment="Center" Height="24" HorizontalAlignment="Right" HorizontalContentAlignment="Center" Margin="5,0" Padding="7,2" VerticalContentAlignment="Center" Click="Button_logDirectoryBrowse_Click" />
                         </Grid>
 
                         <CheckBox MinHeight="25" Grid.Row="2" Content="Automatically connect to previous COM port" IsChecked="{Binding Default.autoConnectLast, Source={StaticResource Settings}}" Margin="0,5,0,0" FontWeight="Bold" VerticalContentAlignment="Center"/>
@@ -413,9 +303,9 @@
             <TabItem Header="EEPROM">
                 <DockPanel>
                     <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" HorizontalAlignment="Right">
-                        <Button x:Name="resetEepromButton" Content="Reset EEPROM" VerticalAlignment="Center" Margin="5" Padding="7,2" Click="resetEepromButton_Click" IsEnabled="{Binding tpmClient.DeviceConfig.EepromRead, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}"/>
-                        <Button x:Name="readEepromButton" Content="Read EEPROM" VerticalAlignment="Center" Margin="5" Padding="7,2" Click="readEepromButton_Click" IsEnabled="{Binding tpmClient.Connected, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}"/>
-                        <Button x:Name="writeEepromButton" Content="Write EEPROM" VerticalAlignment="Center" Margin="5" Padding="7,2" Click="writeEepromButton_Click" IsEnabled="{Binding tpmClient.DeviceConfig.EepromRead, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}"/>
+                        <Button x:Name="resetEepromButton" Content="Reset EEPROM" VerticalAlignment="Center" Margin="5" Padding="7,2" Click="ResetEepromButton_Click" IsEnabled="{Binding TpmClient.DeviceConfig.EepromRead, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}"/>
+                        <Button x:Name="readEepromButton" Content="Read EEPROM" VerticalAlignment="Center" Margin="5" Padding="7,2" Click="ReadEepromButton_Click" IsEnabled="{Binding TpmClient.Connected, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}"/>
+                        <Button x:Name="writeEepromButton" Content="Write EEPROM" VerticalAlignment="Center" Margin="5" Padding="7,2" Click="WriteEepromButton_Click" IsEnabled="{Binding TpmClient.DeviceConfig.EepromRead, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}"/>
                     </StackPanel>
                     <StackPanel>
                         <Grid MinHeight="30">
@@ -425,8 +315,8 @@
                                 <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
                             <Label Grid.Column="0" Content="Readings to Average: " Margin="0,5,0,0" FontWeight="Bold" Width="140"/>
-                            <Slider Grid.Column="1" TickPlacement="BottomRight" IsSnapToTickEnabled="True" Margin="0,6,5,0" Minimum="2" Maximum="15" SmallChange="1" Value="{Binding tpmClient.DeviceConfig.AverageReadingCount, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}" IsEnabled="{Binding tpmClient.DeviceConfig.EepromRead, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}" LargeChange="8"/>
-                            <Label Grid.Column="2" MinWidth="30" Content="{Binding tpmClient.DeviceConfig.AverageReadingCount, Mode=TwoWay, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}, UpdateSourceTrigger=PropertyChanged, ValidatesOnNotifyDataErrors=False}" FontSize="16" FontFamily="Consolas" Margin="5,0" HorizontalContentAlignment="Right"/>
+                            <Slider Grid.Column="1" TickPlacement="BottomRight" IsSnapToTickEnabled="True" Margin="0,6,5,0" Minimum="2" Maximum="15" SmallChange="1" Value="{Binding TpmClient.DeviceConfig.AverageReadingCount, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}" IsEnabled="{Binding TpmClient.DeviceConfig.EepromRead, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}" LargeChange="8"/>
+                            <Label Grid.Column="2" MinWidth="30" Content="{Binding TpmClient.DeviceConfig.AverageReadingCount, Mode=TwoWay, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}, UpdateSourceTrigger=PropertyChanged, ValidatesOnNotifyDataErrors=False}" FontSize="16" FontFamily="Consolas" Margin="5,0" HorizontalContentAlignment="Right"/>
                         </Grid>
 
                         <Grid MinHeight="30">
@@ -436,8 +326,8 @@
                                 <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
                             <Label Grid.Column="0" Content="Update Frequency: " Margin="0,5,0,0" FontWeight="Bold" Width="140"/>
-                            <Slider Grid.Column="1" Minimum="1" Maximum="20" TickPlacement="BottomRight" TickFrequency="1" Value="{Binding tpmClient.DeviceConfig.UpdateFrequency, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}" IsSnapToTickEnabled="True" LargeChange="2" Margin="0,6,5,0" SmallChange="1" IsEnabled="{Binding tpmClient.DeviceConfig.EepromRead, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}"/>
-                            <Label Grid.Column="2" MinWidth="30" Content="{Binding tpmClient.DeviceConfig.UpdateFrequency, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}" FontSize="16" FontFamily="Consolas" Margin="5,0" HorizontalContentAlignment="Right"/>
+                            <Slider Grid.Column="1" Minimum="1" Maximum="20" TickPlacement="BottomRight" TickFrequency="1" Value="{Binding TpmClient.DeviceConfig.UpdateFrequency, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}" IsSnapToTickEnabled="True" LargeChange="2" Margin="0,6,5,0" SmallChange="1" IsEnabled="{Binding TpmClient.DeviceConfig.EepromRead, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}"/>
+                            <Label Grid.Column="2" MinWidth="30" Content="{Binding TpmClient.DeviceConfig.UpdateFrequency, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}" FontSize="16" FontFamily="Consolas" Margin="5,0" HorizontalContentAlignment="Right"/>
                         </Grid>
 
                         <Grid MinHeight="30">
@@ -447,8 +337,8 @@
                                 <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
                             <Label Grid.Column="0" Content="Write Frequency: " Margin="0,5,0,0" FontWeight="Bold" Width="140"/>
-                            <Slider Grid.Column="1" Minimum="1" Maximum="15" TickPlacement="BottomRight" Value="{Binding tpmClient.DeviceConfig.WriteInterval, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}" IsSnapToTickEnabled="True" LargeChange="5" Margin="0,6,5,0" SmallChange="1" IsEnabled="{Binding tpmClient.DeviceConfig.EepromRead, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}"/>
-                            <Label Grid.Column="2" MinWidth="30" Content="{Binding tpmClient.DeviceConfig.WriteInterval, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}" FontSize="16" FontFamily="Consolas" Margin="5,0" HorizontalContentAlignment="Right"/>
+                            <Slider Grid.Column="1" Minimum="1" Maximum="15" TickPlacement="BottomRight" Value="{Binding TpmClient.DeviceConfig.WriteInterval, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}" IsSnapToTickEnabled="True" LargeChange="5" Margin="0,6,5,0" SmallChange="1" IsEnabled="{Binding TpmClient.DeviceConfig.EepromRead, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}"/>
+                            <Label Grid.Column="2" MinWidth="30" Content="{Binding TpmClient.DeviceConfig.WriteInterval, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}" FontSize="16" FontFamily="Consolas" Margin="5,0" HorizontalContentAlignment="Right"/>
                         </Grid>
 
                         <Grid MinHeight="30">
@@ -458,8 +348,8 @@
                                 <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
                             <Label Grid.Column="0" Content="Target Humidity: " Margin="0,5,0,0" FontWeight="Bold" Width="140"/>
-                            <Slider Grid.Column="1" Minimum="10" Maximum="90" TickPlacement="BottomRight" Value="{Binding tpmClient.DeviceConfig.TargetHumidity, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}" IsSnapToTickEnabled="True" LargeChange="10" Margin="0,6,5,0" SmallChange="5" IsEnabled="{Binding tpmClient.DeviceConfig.EepromRead, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}"/>
-                            <Label Grid.Column="2" MinWidth="30" Content="{Binding tpmClient.DeviceConfig.TargetHumidity, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}" FontSize="16" FontFamily="Consolas" Margin="5,0" HorizontalContentAlignment="Right"/>
+                            <Slider Grid.Column="1" Minimum="10" Maximum="90" TickPlacement="BottomRight" Value="{Binding TpmClient.DeviceConfig.TargetHumidity, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}" IsSnapToTickEnabled="True" LargeChange="10" Margin="0,6,5,0" SmallChange="5" IsEnabled="{Binding TpmClient.DeviceConfig.EepromRead, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}"/>
+                            <Label Grid.Column="2" MinWidth="30" Content="{Binding TpmClient.DeviceConfig.TargetHumidity, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}" FontSize="16" FontFamily="Consolas" Margin="5,0" HorizontalContentAlignment="Right"/>
                         </Grid>
 
                         <Grid MinHeight="30">
@@ -469,8 +359,8 @@
                                 <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
                             <Label Grid.Column="0" Content="AC Backup Point: " Margin="0,5,0,0" FontWeight="Bold" Width="140"/>
-                            <Slider Grid.Column="1" TickPlacement="BottomRight" Value="{Binding tpmClient.DeviceConfig.AcBackupPoint, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}" IsSnapToTickEnabled="True" LargeChange="10" Margin="0,6,5,0" SmallChange="5" IsEnabled="{Binding tpmClient.DeviceConfig.EepromRead, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}" Maximum="100"/>
-                            <Label Grid.Column="2" MinWidth="30" Content="{Binding tpmClient.DeviceConfig.AcBackupPoint, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}" FontSize="16" FontFamily="Consolas" Margin="5,0" HorizontalContentAlignment="Right"/>
+                            <Slider Grid.Column="1" TickPlacement="BottomRight" Value="{Binding TpmClient.DeviceConfig.AcBackupPoint, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}" IsSnapToTickEnabled="True" LargeChange="10" Margin="0,6,5,0" SmallChange="5" IsEnabled="{Binding TpmClient.DeviceConfig.EepromRead, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}" Maximum="100"/>
+                            <Label Grid.Column="2" MinWidth="30" Content="{Binding TpmClient.DeviceConfig.AcBackupPoint, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}" FontSize="16" FontFamily="Consolas" Margin="5,0" HorizontalContentAlignment="Right"/>
                         </Grid>
 
                         <Grid MinHeight="30">
@@ -480,8 +370,8 @@
                                 <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
                             <Label Grid.Column="0" Content="AC Recovered Point: " Margin="0,5,0,0" FontWeight="Bold" Width="140"/>
-                            <Slider Grid.Column="1" Maximum="100" TickPlacement="BottomRight" Value="{Binding tpmClient.DeviceConfig.AcRecoveredPoint, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}" IsSnapToTickEnabled="True" LargeChange="10" Margin="0,6,5,0" SmallChange="5" IsEnabled="{Binding tpmClient.DeviceConfig.EepromRead, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}"/>
-                            <Label Grid.Column="2" MinWidth="30" Content="{Binding tpmClient.DeviceConfig.AcRecoveredPoint, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}" FontSize="16" FontFamily="Consolas" Margin="5,0" HorizontalContentAlignment="Right"/>
+                            <Slider Grid.Column="1" Maximum="100" TickPlacement="BottomRight" Value="{Binding TpmClient.DeviceConfig.AcRecoveredPoint, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}" IsSnapToTickEnabled="True" LargeChange="10" Margin="0,6,5,0" SmallChange="5" IsEnabled="{Binding TpmClient.DeviceConfig.EepromRead, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}"/>
+                            <Label Grid.Column="2" MinWidth="30" Content="{Binding TpmClient.DeviceConfig.AcRecoveredPoint, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}" FontSize="16" FontFamily="Consolas" Margin="5,0" HorizontalContentAlignment="Right"/>
                         </Grid>
 
                         <Grid>
@@ -499,9 +389,9 @@
                             <Label Grid.Column="1" Content="Load Amp Offset: " Margin="0,5,0,0" FontWeight="Bold" HorizontalContentAlignment="Center"/>
                             <Label Grid.Column="2" Content="Solar Amp Offset: " Margin="0,5,0,0" FontWeight="Bold" HorizontalContentAlignment="Center"/>
 
-                            <xctk:IntegerUpDown Grid.Column="0" Grid.Row="1" Margin="10,0" Text="{Binding tpmClient.DeviceConfig.AmpDigitalOffset1, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}" VerticalAlignment="Center" Minimum="-5" Maximum="5" Increment="1" IsEnabled="{Binding tpmClient.DeviceConfig.EepromRead, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}" />
-                            <xctk:IntegerUpDown Grid.Column="1" Grid.Row="1" Margin="10,0" Text="{Binding tpmClient.DeviceConfig.AmpDigitalOffset2, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}" VerticalAlignment="Center" Minimum="-5" Maximum="5" Increment="1" IsEnabled="{Binding tpmClient.DeviceConfig.EepromRead, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}" />
-                            <xctk:IntegerUpDown Grid.Column="2" Grid.Row="1" Margin="10,0" Text="{Binding tpmClient.DeviceConfig.AmpDigitalOffset3, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}" VerticalAlignment="Center" Minimum="-5" Maximum="5" Increment="1" IsEnabled="{Binding tpmClient.DeviceConfig.EepromRead, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}" />
+                            <xctk:IntegerUpDown Grid.Column="0" Grid.Row="1" Margin="10,0" Text="{Binding TpmClient.DeviceConfig.AmpDigitalOffset1, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}" VerticalAlignment="Center" Minimum="-5" Maximum="5" Increment="1" IsEnabled="{Binding TpmClient.DeviceConfig.EepromRead, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}" />
+                            <xctk:IntegerUpDown Grid.Column="1" Grid.Row="1" Margin="10,0" Text="{Binding TpmClient.DeviceConfig.AmpDigitalOffset2, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}" VerticalAlignment="Center" Minimum="-5" Maximum="5" Increment="1" IsEnabled="{Binding TpmClient.DeviceConfig.EepromRead, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}" />
+                            <xctk:IntegerUpDown Grid.Column="2" Grid.Row="1" Margin="10,0" Text="{Binding TpmClient.DeviceConfig.AmpDigitalOffset3, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}" VerticalAlignment="Center" Minimum="-5" Maximum="5" Increment="1" IsEnabled="{Binding TpmClient.DeviceConfig.EepromRead, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}" />
                         </Grid>
 
                         <Grid>
@@ -517,8 +407,8 @@
                             <Label Grid.Column="0" Content="R1 Value: " Margin="0,5,0,0" FontWeight="Bold" HorizontalContentAlignment="Center"/>
                             <Label Grid.Column="1" Content="R2 Value: " Margin="0,5,0,0" FontWeight="Bold" HorizontalContentAlignment="Center"/>
 
-                            <xctk:IntegerUpDown Grid.Column="0" Grid.Row="1" Margin="10,0" Text="{Binding tpmClient.DeviceConfig.R1Actual, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}" VerticalAlignment="Center" Minimum="0" Maximum="100000" IsEnabled="{Binding tpmClient.DeviceConfig.EepromRead, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}" />
-                            <xctk:IntegerUpDown Grid.Column="1" Grid.Row="1" Margin="10,0" Text="{Binding tpmClient.DeviceConfig.R2Actual, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}" VerticalAlignment="Center" Minimum="0" Maximum="100000" IsEnabled="{Binding tpmClient.DeviceConfig.EepromRead, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}" />
+                            <xctk:IntegerUpDown Grid.Column="0" Grid.Row="1" Margin="10,0" Text="{Binding TpmClient.DeviceConfig.R1Actual, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}" VerticalAlignment="Center" Minimum="0" Maximum="100000" IsEnabled="{Binding TpmClient.DeviceConfig.EepromRead, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}" />
+                            <xctk:IntegerUpDown Grid.Column="1" Grid.Row="1" Margin="10,0" Text="{Binding TpmClient.DeviceConfig.R2Actual, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}" VerticalAlignment="Center" Minimum="0" Maximum="100000" IsEnabled="{Binding TpmClient.DeviceConfig.EepromRead, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}" />
                         </Grid>
                         
                         <Grid>
@@ -538,10 +428,10 @@
                             <Label Grid.Column="2" Content="Humidity Cal: " Margin="0,5,0,0" FontWeight="Bold" HorizontalContentAlignment="Center"/>
                             <Label Grid.Column="3" Content="Hum Hysterisis: " Margin="0,5,0,0" FontWeight="Bold" HorizontalContentAlignment="Center"/>
 
-                            <xctk:DecimalUpDown Grid.Column="0" Grid.Row="1" Margin="10,0" Text="{Binding tpmClient.DeviceConfig.VoltageCalibration, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}" VerticalAlignment="Center" Maximum="1" Minimum="-1" Increment="0.0005" IsEnabled="{Binding tpmClient.DeviceConfig.EepromRead, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}" />
-                            <xctk:DecimalUpDown Grid.Column="1" Grid.Row="1" Margin="10,0" Text="{Binding tpmClient.DeviceConfig.TemperatureCalibration, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}" VerticalAlignment="Center" Maximum="2" Minimum="-2" Increment="0.0005" IsEnabled="{Binding tpmClient.DeviceConfig.EepromRead, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}" />
-                            <xctk:DecimalUpDown Grid.Column="2" Grid.Row="1" Margin="10,0" Text="{Binding tpmClient.DeviceConfig.HumidityCalibration, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}" VerticalAlignment="Center" Maximum="2" Minimum="-2" Increment="0.0005" IsEnabled="{Binding tpmClient.DeviceConfig.EepromRead, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}" />
-                            <xctk:IntegerUpDown Grid.Column="3" Grid.Row="1" Margin="10,0" Text="{Binding tpmClient.DeviceConfig.HumidityHysterisis, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}" VerticalAlignment="Center" Minimum="4" Maximum="10" IsEnabled="{Binding tpmClient.DeviceConfig.EepromRead, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}" />
+                            <xctk:DecimalUpDown Grid.Column="0" Grid.Row="1" Margin="10,0" Text="{Binding TpmClient.DeviceConfig.VoltageCalibration, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}" VerticalAlignment="Center" Maximum="1" Minimum="-1" Increment="0.0005" IsEnabled="{Binding TpmClient.DeviceConfig.EepromRead, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}" />
+                            <xctk:DecimalUpDown Grid.Column="1" Grid.Row="1" Margin="10,0" Text="{Binding TpmClient.DeviceConfig.TemperatureCalibration, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}" VerticalAlignment="Center" Maximum="2" Minimum="-2" Increment="0.0005" IsEnabled="{Binding TpmClient.DeviceConfig.EepromRead, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}" />
+                            <xctk:DecimalUpDown Grid.Column="2" Grid.Row="1" Margin="10,0" Text="{Binding TpmClient.DeviceConfig.HumidityCalibration, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}" VerticalAlignment="Center" Maximum="2" Minimum="-2" Increment="0.0005" IsEnabled="{Binding TpmClient.DeviceConfig.EepromRead, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}" />
+                            <xctk:IntegerUpDown Grid.Column="3" Grid.Row="1" Margin="10,0" Text="{Binding TpmClient.DeviceConfig.HumidityHysterisis, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}" VerticalAlignment="Center" Minimum="4" Maximum="10" IsEnabled="{Binding TpmClient.DeviceConfig.EepromRead, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}" />
                         </Grid>
 
                         <Grid>
@@ -559,9 +449,9 @@
                             <Label Grid.Column="1" Content="Ending Amps: " Margin="0,5,0,0" FontWeight="Bold" HorizontalContentAlignment="Center"/>
                             <Label Grid.Column="2" Content="Absorb Voltage: " Margin="0,5,0,0" FontWeight="Bold" HorizontalContentAlignment="Center"/>
 
-                            <xctk:IntegerUpDown Grid.Column="0" Grid.Row="1" Margin="10,0" Text="{Binding tpmClient.DeviceConfig.BatteryCapacityAh, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}" VerticalAlignment="Center" Minimum="1" Maximum="250" Increment="1" IsEnabled="{Binding tpmClient.DeviceConfig.EepromRead, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}" />
-                            <xctk:DecimalUpDown Grid.Column="1" Grid.Row="1" Margin="10,0" Text="{Binding tpmClient.DeviceConfig.BatteryEndingAmps, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}" VerticalAlignment="Center" Minimum="0.1" Maximum="6" Increment="0.1" IsEnabled="{Binding tpmClient.DeviceConfig.EepromRead, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}" />
-                            <xctk:DecimalUpDown Grid.Column="2" Grid.Row="1" Margin="10,0" Text="{Binding tpmClient.DeviceConfig.BatteryAbsorbVoltage, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}" VerticalAlignment="Center" Minimum="12.0" Maximum="15.0" Increment="0.1" IsEnabled="{Binding tpmClient.DeviceConfig.EepromRead, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}" />
+                            <xctk:IntegerUpDown Grid.Column="0" Grid.Row="1" Margin="10,0" Text="{Binding TpmClient.DeviceConfig.BatteryCapacityAh, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}" VerticalAlignment="Center" Minimum="1" Maximum="250" Increment="1" IsEnabled="{Binding TpmClient.DeviceConfig.EepromRead, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}" />
+                            <xctk:DecimalUpDown Grid.Column="1" Grid.Row="1" Margin="10,0" Text="{Binding TpmClient.DeviceConfig.BatteryEndingAmps, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}" VerticalAlignment="Center" Minimum="0.1" Maximum="6" Increment="0.1" IsEnabled="{Binding TpmClient.DeviceConfig.EepromRead, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}" />
+                            <xctk:DecimalUpDown Grid.Column="2" Grid.Row="1" Margin="10,0" Text="{Binding TpmClient.DeviceConfig.BatteryAbsorbVoltage, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}" VerticalAlignment="Center" Minimum="12.0" Maximum="15.0" Increment="0.1" IsEnabled="{Binding TpmClient.DeviceConfig.EepromRead, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}" />
                         </Grid>
 
 

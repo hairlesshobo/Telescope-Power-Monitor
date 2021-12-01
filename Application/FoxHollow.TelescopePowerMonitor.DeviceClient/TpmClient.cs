@@ -13,6 +13,7 @@ namespace FoxHollow.TelescopePowerMonitor.DeviceClient
     public delegate void TpmLogLineReceived(string line);
     public delegate void TpmPowerChanged(PowerInfo powerInfo);
     public delegate void TpmEnvironmentChanged(EnvironmentInfo environmentInfo);
+    public delegate void TpmStatusChanged(StatusInfo statusInfo);
 
     public class TpmClient : INotifyPropertyChanged
     {
@@ -23,6 +24,8 @@ namespace FoxHollow.TelescopePowerMonitor.DeviceClient
         public event TpmLogLineReceived OnLogLine;
         public event TpmPowerChanged OnPowerChanged;
         public event TpmEnvironmentChanged OnEnvironmentChanged;
+        public event TpmStatusChanged OnStatusChanged;
+
         public event PropertyChangedEventHandler PropertyChanged;
 
         public DateTimeOffset ConnectDtm { get; private set; }
@@ -43,16 +46,20 @@ namespace FoxHollow.TelescopePowerMonitor.DeviceClient
 
         public PowerInfo Power { get; }
         public EnvironmentInfo Environment { get; }
+        public StatusInfo Status { get; }
         public EEPROM DeviceConfig { get; }
 
         public TpmClient()
         {
             this.Power = new PowerInfo();
             this.Environment = new EnvironmentInfo();
+            this.Status = new StatusInfo();
             this.DeviceConfig = new EEPROM();
 
             this.OnLogLine += delegate { };
             this.OnPowerChanged += delegate { };
+            this.OnEnvironmentChanged += delegate { };
+            this.OnStatusChanged += delegate { };
         }
 
         public void SetSerialPort(string serialPort)
@@ -71,13 +78,10 @@ namespace FoxHollow.TelescopePowerMonitor.DeviceClient
             if (String.IsNullOrWhiteSpace(this.Port))
                 throw new ArgumentNullException("Port was not specified");
 
-            Power.Voltage.Reset();
-            Power.BatteryAmperage.Reset();
-            Power.LoadAmperage.Reset();
-            Power.SolarAmperage.Reset();
-            Power.AcAmperage.Reset();
-            Power.BatterySoc.Reset();
-            Power.BatteryCapacityAh.Reset();
+            this.DeviceConfig.Reset();
+            this.Environment.Reset();
+            this.Status.Reset();
+            this.Power.Reset();
 
             // Open serial port
             _serialPort = new SerialPort(Port, 115200);
@@ -94,7 +98,7 @@ namespace FoxHollow.TelescopePowerMonitor.DeviceClient
 
                 this.Connected = true;
                 this.ConnectDtm = DateTimeOffset.Now;
-                this.PcOn();
+                this.PcSetState(true);
 
                 _cts = new CancellationTokenSource();
 
@@ -131,14 +135,14 @@ namespace FoxHollow.TelescopePowerMonitor.DeviceClient
             {
                 _cts.Cancel();
 
-                this.PcOff();
+                this.PcSetState(false);
 
                 _serialPort.ReadExisting();
                 _serialPort.DataReceived -= SerialPortDataReceived;
                 _serialPort.DiscardInBuffer();
                 _serialPort.DiscardOutBuffer();
 
-                Thread.Sleep(500);
+                Thread.Sleep(250);
 
                 try
                 {
@@ -148,17 +152,20 @@ namespace FoxHollow.TelescopePowerMonitor.DeviceClient
                 {
                     this.OnLogLine($"ERROR: {ex.Message}");
                 }
-            }
 
-            this.Connected = false;
+                this.ConnectDtm = default;
+                this.Connected = false;
+
+                this.DeviceConfig.Reset();
+                this.Environment.Reset();
+                this.Status.Reset();
+                this.Power.Reset();
+            }
         }
 
         private void SerialPortDataReceived(object sender, SerialDataReceivedEventArgs e)
         {
-            if (_serialPort == null)
-                return;
-
-            if (!_serialPort.IsOpen)
+            if (_serialPort == null || !_serialPort.IsOpen || !this.Connected)
                 return;
 
             try
@@ -176,6 +183,9 @@ namespace FoxHollow.TelescopePowerMonitor.DeviceClient
 
                     else if (this.Environment.ParseLogLine(line))
                         OnEnvironmentChanged(this.Environment);
+
+                    else if (this.Status.ParseLogLine(line))
+                        OnStatusChanged(this.Status);
 
                     else if (this.DeviceConfig.ParseLogLine(line)) { }
                         
@@ -196,11 +206,11 @@ namespace FoxHollow.TelescopePowerMonitor.DeviceClient
 
         private void WriteToDevice(string line)
         {
-            if (_serialPort != null && _serialPort.IsOpen)
-            {
-                _serialPort.Write(line + "\n");
-                Thread.Sleep(100);
-            }
+            if (!this.Connected || _serialPort == null || !_serialPort.IsOpen)
+                return;
+
+            _serialPort.Write(line + "\n");
+            Thread.Sleep(100);
         }
 
         public void SaveEEPROM()
@@ -249,11 +259,49 @@ namespace FoxHollow.TelescopePowerMonitor.DeviceClient
         public void SendPing()
             => this.WriteToDevice("PING");
 
-        public void PcOn()
-            => this.WriteToDevice("PC ON");
+        public void PcSetState(bool state)
+            => this.WriteToDevice($"PC {GetOnOffState(state)}");
 
-        public void PcOff()
-            => this.WriteToDevice("PC OFF");
+        public void AutoDehumSetState(bool state)
+            => this.WriteToDevice($"DEHUM {GetOnOffState(state)}");
+
+        public void AutoDehumToggleState()
+            => this.AutoDehumSetState(!this.Status.DehumEnabled);
+
+        private void SetRelayState(string relay, bool state)
+            => this.WriteToDevice($"PWR {GetOnOffState(state)} {relay}");
+
+        public void TelescopePwrState(bool state)
+            => this.SetRelayState("TELESCOPE", state);
+
+        public void TelescopeToggleState()
+            => this.TelescopePwrState(!this.Status.TelescopeOutState);
+
+        public void DehumidifierPwrState(bool state)
+            => this.SetRelayState("DEHUM", state);
+
+        public void DehumidifierToggleState()
+            => this.DehumidifierPwrState(!this.Status.DehumOutState);
+
+        public void Aux1PwrState(bool state)
+            => this.SetRelayState("AUX1", state);
+
+        public void Aux1ToggleState()
+            => this.Aux1PwrState(!this.Status.Aux1OutState);
+
+        public void AcPwrState(bool state)
+            => this.SetRelayState("AC", state);
+
+        public void AcToggleState()
+            => this.AcPwrState(!this.Status.AcInState);
+
+        public void UpdateTime()
+        {
+            string timeStr = DateTimeOffset.UtcNow.AddMilliseconds(250).ToString("yyyy-MM-ddTHH:mm:ss");
+            this.WriteToDevice($"SET TIME {timeStr}");
+        }
+
+        string GetOnOffState(bool status) => (status ? "ON" : "OFF");
 
         protected void OnPropertyChanged([CallerMemberName] string name = null)
             => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));

@@ -25,5 +25,38 @@ namespace FoxHollow.TelescopePowerMonitor.GUI
 
         internal static string FormatPercentage(float input)
             => $"{input:0}%";
+
+        internal static string FormatUptime(int seconds)
+        {
+            List<string> returnParts = new List<string>();
+
+            if (seconds > 86400)
+            {
+                int days = seconds / 86400;
+                returnParts.Add(days.ToString() + "d");
+                seconds -= days * 86400;
+            }
+
+            if (seconds > 3600)
+            {
+                int hours = seconds / 3600;
+                returnParts.Add(hours.ToString() + "h");
+                seconds -= hours * 3600;
+            }
+
+            if (seconds > 60)
+            {
+                int minutes = seconds / 60;
+                returnParts.Add(minutes.ToString() + "m");
+                seconds -= minutes * 60;
+            }
+
+            if (seconds > 0)
+            {
+                returnParts.Add(seconds.ToString() + "s");
+            }
+
+            return String.Join(" ", returnParts);
+        }
     }
 }

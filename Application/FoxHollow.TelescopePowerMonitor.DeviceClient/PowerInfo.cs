@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Text;
 
 namespace FoxHollow.TelescopePowerMonitor.DeviceClient
@@ -31,7 +32,7 @@ namespace FoxHollow.TelescopePowerMonitor.DeviceClient
             if (!parts[2].Equals("PWR", StringComparison.InvariantCultureIgnoreCase))
                 return false;
 
-            this.LastReadDtm = DateTimeOffset.Parse(parts[0]);
+            this.LastReadDtm = DateTimeOffset.Parse(parts[0], null, DateTimeStyles.AssumeUniversal);
             this.LastReadUptime = Int32.Parse(parts[1]);
 
             this.Voltage.UpdateValue(parts[3], this.LastReadDtm);
@@ -42,7 +43,30 @@ namespace FoxHollow.TelescopePowerMonitor.DeviceClient
             this.BatterySoc.UpdateValue(parts[8], this.LastReadDtm);
             this.BatteryCapacityAh.UpdateValue(parts[9], this.LastReadDtm);
 
+            this.Voltage.Valid = true;
+            this.BatteryAmperage.Valid = true;
+            this.LoadAmperage.Valid = true;
+            this.SolarAmperage.Valid = true;
+            this.AcAmperage.Valid = true;
+            this.BatterySoc.Valid = true;
+            this.BatteryCapacityAh.Valid = true;
+
+
             return true;
+        }
+
+        internal void Reset()
+        {
+            this.LastReadDtm = default;
+            this.LastReadUptime = 0;
+
+            this.Voltage.Reset();
+            this.BatteryAmperage.Reset();
+            this.LoadAmperage.Reset();
+            this.SolarAmperage.Reset();
+            this.AcAmperage.Reset();
+            this.BatterySoc.Reset();
+            this.BatteryCapacityAh.Reset();
         }
     }
 }

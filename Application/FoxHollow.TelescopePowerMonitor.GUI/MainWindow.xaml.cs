@@ -20,17 +20,16 @@ namespace FoxHollow.TelescopePowerMonitor.GUI
     /// </summary>
     public partial class MainWindow : Window
     {
-        public TpmClient tpmClient { get; }
+        public TpmClient TpmClient { get; }
 
         public MainWindow()
         { 
+            this.TpmClient = new TpmClient();
+            this.TpmClient.OnLogLine += AppendLog;
+
+            App.TpmClient = this.TpmClient;
+
             InitializeComponent();
-
-            tpmClient = new TpmClient();
-
-            tpmClient.OnLogLine += AppendLog;
-            tpmClient.OnPowerChanged += UpdatePowerInfo;
-            tpmClient.OnEnvironmentChanged += UpdateEnvironmentInfo;
         }
 
         private void Window_Loaded(object sender, RoutedEventArgs e)
@@ -39,16 +38,14 @@ namespace FoxHollow.TelescopePowerMonitor.GUI
 
             SetDefaultLogDirectory();
 
-            uptimeStatusBlock.Text = "---";
             mainWindow.Topmost = Default.alwaysOnTop;
 
-            statusBar_SetDisconnected();
+            StatusBar_SetDisconnected();
             RefreshPorts();
-            ClearStatusValues();
 
             SetLastComPort();
 
-            attachValueWatchers();
+            AttachValueWatchers();
         }
 
         private void SetDefaultLogDirectory()
@@ -65,7 +62,7 @@ namespace FoxHollow.TelescopePowerMonitor.GUI
             }
         }
 
-        private void attachValueWatchers()
+        private void AttachValueWatchers()
         {
             Default.PropertyChanged += Default_PropertyChanged1;
         }
@@ -110,7 +107,7 @@ namespace FoxHollow.TelescopePowerMonitor.GUI
 
                     if (Default.autoConnectLast)
                     {
-                        tpmClient.SetSerialPort(Default.lastComPort);
+                        TpmClient.SetSerialPort(Default.lastComPort);
                         Connect();
                     }
                 }
@@ -131,7 +128,7 @@ namespace FoxHollow.TelescopePowerMonitor.GUI
 
         private void ConnectButton_Click(object sender, RoutedEventArgs e)
         {
-            if (!tpmClient.Connected)
+            if (!TpmClient.Connected)
             {
                 if (comPortList.SelectedItem == null)
                 {
@@ -140,7 +137,7 @@ namespace FoxHollow.TelescopePowerMonitor.GUI
                 }
 
 
-                tpmClient.SetSerialPort(comPortList.SelectedItem.ToString());
+                TpmClient.SetSerialPort(comPortList.SelectedItem.ToString());
                 Connect();
             }
             else
@@ -149,25 +146,21 @@ namespace FoxHollow.TelescopePowerMonitor.GUI
 
         private void Connect()
         {
-            if (tpmClient.Connected)
+            if (TpmClient.Connected)
                 return;
 
             try
             {
-                tpmClient.Connect();
+                TpmClient.Connect();
 
-                if (tpmClient.Connected)
+                if (TpmClient.Connected)
                 {
-                    statusBar_SetConnected();
-                    controls_disable();
+                    StatusBar_SetConnected();
+                    Controls_disable();
                     button_Connect.Content = "Disconnect";
 
-                    Default.lastComPort = tpmClient.Port;
+                    Default.lastComPort = TpmClient.Port;
                     Default.Save();
-
-                    uptimeStatusBlock.Foreground = Brushes.DarkGray;
-
-                    SetDisplayColors(Brushes.DarkGray);
                 }
             }
             catch (SerialPortNotFoundException e)
@@ -179,16 +172,14 @@ namespace FoxHollow.TelescopePowerMonitor.GUI
 
         private void Disconnect()
         {
-            if (!tpmClient.Connected)
+            if (!TpmClient.Connected)
                 return;
 
-            Task.Run(() => tpmClient.Disconnect());
+            Task.Run(() => TpmClient.Disconnect());
 
-            statusBar_SetDisconnected();
-            controls_enable();
+            StatusBar_SetDisconnected();
+            Controls_enable();
             button_Connect.Content = "Connect";
-
-            ClearStatusValues();
         }
 
         private void WriteLogLine(string line)
@@ -223,243 +214,40 @@ namespace FoxHollow.TelescopePowerMonitor.GUI
             WriteLogLine(value);
         }
 
-        public void ClearStatusValues()
-        {
-            voltageAvgBlock.Text = Formatting.Empty;
-            voltageMinBlock.Text = Formatting.Empty;
-            voltageMaxBlock.Text = Formatting.Empty;
-
-            batteryAmperageAvgBlock.Text = Formatting.Empty;
-            batteryAmperageMaxBlock.Text = Formatting.Empty;
-            batteryAmperageMinBlock.Text = Formatting.Empty;
-
-            temperageAvgBlock.Text = Formatting.Empty;
-            temperageMinBlock.Text = Formatting.Empty;
-            temperageMaxBlock.Text = Formatting.Empty;
-
-            humidityAvgBlock.Text = Formatting.Empty;
-            humidityMinBlock.Text = Formatting.Empty;
-            humidityMaxBlock.Text = Formatting.Empty;
-
-            loadAmperageAvgBlock.Text = Formatting.Empty;
-            loadAmperageMaxBlock.Text = Formatting.Empty;
-            loadAmperageMinBlock.Text = Formatting.Empty;
-
-            solarAmperageAvgBlock.Text = Formatting.Empty;
-            solarAmperageMaxBlock.Text = Formatting.Empty;
-            solarAmperageMinBlock.Text = Formatting.Empty;
-
-            acAmperageAvgBlock.Text = Formatting.Empty;
-            acAmperageMaxBlock.Text = Formatting.Empty;
-            acAmperageMinBlock.Text = Formatting.Empty;
-
-
-            uptimeStatusBlock.Text = Formatting.Empty;
-
-            // TODO: Add other crap here
-
-            uptimeStatusBlock.Foreground = Brushes.Gray;
-
-            SetDisplayColors(Brushes.Gray);
-        }
-
-        public void UpdatePowerInfo(PowerInfo info)
-        {
-            if (!Dispatcher.CheckAccess())
-            {
-                this.Dispatcher.Invoke(() => UpdatePowerInfo(info));
-
-                return;
-            }
-
-            //uptimeStatusBlock.Text = FormatUptime(info.UptimeSeconds);
-
-            voltageAvgBlock.Text = Formatting.FormatVoltage(info.Voltage.Current);
-            voltageMinBlock.Text = Formatting.FormatVoltage(info.Voltage.Minimum);
-            voltageMaxBlock.Text = Formatting.FormatVoltage(info.Voltage.Maximum);
-
-            batteryAmperageAvgBlock.Text = Formatting.FormatAmperage(info.BatteryAmperage.Current);
-            batteryAmperageMinBlock.Text = Formatting.FormatAmperage(info.BatteryAmperage.Minimum);
-            batteryAmperageMaxBlock.Text = Formatting.FormatAmperage(info.BatteryAmperage.Maximum);
-
-            loadAmperageAvgBlock.Text = Formatting.FormatAmperage(info.LoadAmperage.Current);
-            loadAmperageMaxBlock.Text = Formatting.FormatAmperage(info.LoadAmperage.Minimum);
-            loadAmperageMinBlock.Text = Formatting.FormatAmperage(info.LoadAmperage.Maximum);
-            
-            solarAmperageAvgBlock.Text = Formatting.FormatAmperage(info.SolarAmperage.Current);
-            solarAmperageMaxBlock.Text = Formatting.FormatAmperage(info.SolarAmperage.Minimum);
-            solarAmperageMinBlock.Text = Formatting.FormatAmperage(info.SolarAmperage.Maximum);
-
-            acAmperageAvgBlock.Text = Formatting.FormatAmperage(info.AcAmperage.Current);
-            acAmperageMaxBlock.Text = Formatting.FormatAmperage(info.AcAmperage.Minimum);
-            acAmperageMinBlock.Text = Formatting.FormatAmperage(info.AcAmperage.Maximum);
-
-            batterySocAvgBlock.Text = Formatting.FormatPercentage(info.BatterySoc.Current);
-            batterySocMinBlock.Text = Formatting.FormatPercentage(info.BatterySoc.Minimum);
-            batterySocMaxBlock.Text = Formatting.FormatPercentage(info.BatterySoc.Maximum);
-
-            setVoltageColor(voltageAvgBlock, info.Voltage.Current);
-            setVoltageColor(voltageMinBlock, info.Voltage.Minimum);
-            setVoltageColor(voltageMaxBlock, info.Voltage.Maximum);
-
-            setAmperageColor(batteryAmperageAvgBlock, info.BatteryAmperage.Current);
-            setAmperageColor(batteryAmperageMinBlock, info.BatteryAmperage.Minimum);
-            setAmperageColor(batteryAmperageMaxBlock, info.BatteryAmperage.Maximum);
-        }
-
-        public void UpdateEnvironmentInfo(EnvironmentInfo info)
-        {
-            if (!Dispatcher.CheckAccess())
-            {
-                this.Dispatcher.Invoke(() => UpdateEnvironmentInfo(info));
-
-                return;
-            }
-
-            temperageAvgBlock.Text = Formatting.FormatTemperature(info.Temperature.Current);
-            temperageMinBlock.Text = Formatting.FormatTemperature(info.Temperature.Minimum);
-            temperageMaxBlock.Text = Formatting.FormatTemperature(info.Temperature.Maximum);
-
-            humidityAvgBlock.Text = Formatting.FormatPercentage(info.Humidity.Current);
-            humidityMinBlock.Text = Formatting.FormatPercentage(info.Humidity.Minimum);
-            humidityMaxBlock.Text = Formatting.FormatPercentage(info.Humidity.Maximum);
-
-            //amperageAvgBlock.Text = info.BatteryAmperage.Current.ToString("0.00") + " A";
-            //amperageMinBlock.Text = info.BatteryAmperage.Minimum.ToString("0.00") + " A";
-            //amperageMaxBlock.Text = info.BatteryAmperage.Maximum.ToString("0.00") + " A";
-
-            //setVoltageColor(voltageAvgBlock, info.Voltage.Current);
-            //setVoltageColor(voltageMinBlock, info.Voltage.Minimum);
-            //setVoltageColor(voltageMaxBlock, info.Voltage.Maximum);
-
-            //setAmperageColor(amperageAvgBlock, info.BatteryAmperage.Current);
-            //setAmperageColor(amperageMinBlock, info.BatteryAmperage.Minimum);
-            //setAmperageColor(amperageMaxBlock, info.BatteryAmperage.Maximum);
-        }
-
-        private void SetDisplayColors(Brush color)
-        {
-            TextBlock[] textBlocks = new TextBlock[]
-            {
-                voltageAvgBlock,
-                voltageMinBlock,
-                voltageMaxBlock,
-                batteryAmperageAvgBlock,
-                batteryAmperageMaxBlock,
-                batteryAmperageMinBlock,
-                loadAmperageAvgBlock,
-                loadAmperageMaxBlock,
-                loadAmperageMinBlock,
-                solarAmperageAvgBlock,
-                solarAmperageMaxBlock,
-                solarAmperageMinBlock,
-                acAmperageAvgBlock,
-                acAmperageMaxBlock,
-                acAmperageMinBlock,
-                temperageAvgBlock,
-                temperageMinBlock,
-                temperageMaxBlock,
-                humidityAvgBlock,
-                humidityMinBlock,
-                humidityMaxBlock,
-                batterySocAvgBlock,
-                batterySocMinBlock,
-                batterySocMaxBlock
-
-            };
-
-            foreach (TextBlock textBlock in textBlocks)
-                textBlock.Foreground = color;
-        }
-
-        private string FormatUptime(int seconds)
-        {
-            List<string> returnParts = new List<string>();
-
-            if (seconds > 86400)
-            {
-                int days = seconds / 86400;
-                returnParts.Add(days.ToString() + "d");
-                seconds -= days * 86400;
-            }
-
-            if (seconds > 3600)
-            {
-                int hours = seconds / 3600;
-                returnParts.Add(hours.ToString() + "h");
-                seconds -= hours * 3600;
-            }
-
-            if (seconds > 60)
-            {
-                int minutes = seconds / 60;
-                returnParts.Add(minutes.ToString() + "m");
-                seconds -= minutes * 60;
-            }
-
-            if (seconds > 0)
-            {
-                returnParts.Add(seconds.ToString() + "s");
-            }
-
-            return String.Join(" ", returnParts);
-        }
-
-        private void setVoltageColor(TextBlock block, float Value)
-        {
-            if (Value < Default.warningVoltage)
-                block.Foreground = (SolidColorBrush)(new BrushConverter().ConvertFrom(Default.warningColor));
-            else if (Value >= Default.warningVoltage && Value < Default.watchVoltage)
-                block.Foreground = (SolidColorBrush)(new BrushConverter().ConvertFrom(Default.watchColor));
-            else
-                block.Foreground = (SolidColorBrush)(new BrushConverter().ConvertFrom(Default.normalColor));
-        }
-
-        private void setAmperageColor(TextBlock block, float Value)
-        {
-            if (Value > Default.warningAmperage)
-                block.Foreground = (SolidColorBrush)(new BrushConverter().ConvertFrom(Default.warningColor));
-            else if (Value < Default.warningAmperage && Value >= Default.watchAmperage)
-                block.Foreground = (SolidColorBrush)(new BrushConverter().ConvertFrom(Default.watchColor));
-            else
-                block.Foreground = (SolidColorBrush)(new BrushConverter().ConvertFrom(Default.normalColor));
-        }
-
-        private void controls_enable()
+        private void Controls_enable()
         {
             button_refreshPorts.IsEnabled = true;
             comPortList.IsEnabled = true;
         }
 
-        private void controls_disable()
+        private void Controls_disable()
         {
             button_refreshPorts.IsEnabled = false;
             comPortList.IsEnabled = false;
         }
 
-        private void statusBar_SetConnected()
+        private void StatusBar_SetConnected()
         {
-            connectionStatusBlock.Text = $"Connected to {tpmClient.Port}";
+            connectionStatusBlock.Text = $"Connected to {TpmClient.Port}";
         }
 
-        private void statusBar_SetDisconnected()
+        private void StatusBar_SetDisconnected()
         {
             connectionStatusBlock.Text = "Disconnected";
-            uptimeStatusBlock.Text = "";
         }
 
-        private void comPortList_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        private void ComPortList_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             button_Connect.IsEnabled = (comPortList.SelectedItem != null);
         }
 
         private void Window_Closing(object sender, System.ComponentModel.CancelEventArgs e)
         {
-            if (tpmClient.Connected)
+            if (TpmClient.Connected)
                 Disconnect();
         }
 
-        private void button_logDirectoryBrowse_Click(object sender, RoutedEventArgs e)
+        private void Button_logDirectoryBrowse_Click(object sender, RoutedEventArgs e)
         {
             CommonOpenFileDialog dialog = new CommonOpenFileDialog();
             dialog.IsFolderPicker = true;
@@ -478,7 +266,7 @@ namespace FoxHollow.TelescopePowerMonitor.GUI
             this.Focus();
         }
 
-        private void resetSettingsButton_Click(object sender, RoutedEventArgs e)
+        private void ResetSettingsButton_Click(object sender, RoutedEventArgs e)
         {
             MessageBoxResult result = MessageBox.Show(
                 "Are you sure you want to reset settings to the defaults. This will also disconnect any current session.",
@@ -494,13 +282,35 @@ namespace FoxHollow.TelescopePowerMonitor.GUI
             }
         }
 
-        private void readEepromButton_Click(object sender, RoutedEventArgs e)
-            => tpmClient.ReadEEPROM();
+        private void ReadEepromButton_Click(object sender, RoutedEventArgs e)
+            => TpmClient.ReadEEPROM();
 
-        private void resetEepromButton_Click(object sender, RoutedEventArgs e)
-            => tpmClient.ResetEeprom();
+        private void ResetEepromButton_Click(object sender, RoutedEventArgs e)
+            => TpmClient.ResetEeprom();
 
-        private void writeEepromButton_Click(object sender, RoutedEventArgs e)
-            => tpmClient.SaveEEPROM();
+        private void WriteEepromButton_Click(object sender, RoutedEventArgs e)
+            => TpmClient.SaveEEPROM();
+
+        private void timeDeltaStatusItem_MouseDoubleClick(object sender, System.Windows.Input.MouseButtonEventArgs e)
+        {
+            TpmClient.UpdateTime();
+        }
+
+        private void ToggleDehum_MouseDoubleClick(object sender, System.Windows.Input.MouseButtonEventArgs e)
+            => this.TpmClient.AutoDehumToggleState();
+
+        private void ToggleScope_MouseDoubleClick(object sender, System.Windows.Input.MouseButtonEventArgs e)
+            => this.TpmClient.TelescopeToggleState();
+
+        private void ToggleAux1_MouseDoubleClick(object sender, System.Windows.Input.MouseButtonEventArgs e)
+            => this.TpmClient.Aux1ToggleState();
+
+        private void ToggleDehumidifier_MouseDoubleClick(object sender, System.Windows.Input.MouseButtonEventArgs e)
+        {
+            //this.TpmClient.DehumidifierToggleState();
+        }
+
+        private void ToggleAc_MouseDoubleClick(object sender, System.Windows.Input.MouseButtonEventArgs e)
+            => this.TpmClient.AcToggleState();
     }
 }

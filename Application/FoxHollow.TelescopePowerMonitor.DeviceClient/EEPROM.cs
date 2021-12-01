@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Globalization;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Text;
@@ -35,8 +36,6 @@ namespace FoxHollow.TelescopePowerMonitor.DeviceClient
         private bool _eepromRead = false;
 
         public event PropertyChangedEventHandler PropertyChanged;
-
-        public bool ParseSuccess { get; private set; } = false;
 
         public int LastReadUptime
         {
@@ -252,6 +251,9 @@ namespace FoxHollow.TelescopePowerMonitor.DeviceClient
             if (!parts[2].Equals("CONFIG", StringComparison.InvariantCultureIgnoreCase))
                 return false;
 
+            this.LastReadDtm = DateTimeOffset.Parse(parts[0], null, DateTimeStyles.AssumeUniversal);
+            this.LastReadUptime = Int32.Parse(parts[1]);
+
             string variable = parts[3];
             string strValue = parts[4];
 
@@ -313,6 +315,34 @@ namespace FoxHollow.TelescopePowerMonitor.DeviceClient
                 return false;
 
             return true;
+        }
+
+        internal void Reset()
+        {
+            LastReadDtm = default;
+            LastReadUptime = 0;
+
+            EepromRead = false;
+
+            AverageReadingCount = 0;
+            UpdateFrequency = 0;
+            WriteInterval = 0;
+            VoltageCalibration = 0;
+            R1Actual = 0;
+            R2Actual = 0;
+            AmpDigitalOffset1 = 0;
+            AmpDigitalOffset2 = 0;
+            AmpDigitalOffset3 = 0;
+            TemperatureCalibration = 0;
+            HumidityCalibration = 0;
+            TargetHumidity = 0;
+            HumidityHysterisis = 0;
+            AcBackupPoint = 0;
+            AcRecoveredPoint = 0;
+            BatteryCapacityAh = 0;
+            BatteryEndingAmps = 0;
+            BatteryAbsorbVoltage = 0;
+
         }
 
         protected void OnPropertyChanged([CallerMemberName] string name = null)

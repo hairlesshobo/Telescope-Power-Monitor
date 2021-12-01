@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Text;
 
 namespace FoxHollow.TelescopePowerMonitor.DeviceClient
@@ -25,13 +26,25 @@ namespace FoxHollow.TelescopePowerMonitor.DeviceClient
             if (!parts[2].Equals("ENV", StringComparison.InvariantCultureIgnoreCase))
                 return false;
 
-            this.LastReadDtm = DateTimeOffset.Parse(parts[0]);
+            this.LastReadDtm = DateTimeOffset.Parse(parts[0], null, DateTimeStyles.AssumeUniversal);
             this.LastReadUptime = Int32.Parse(parts[1]);
 
             this.Temperature.UpdateValue(parts[3], this.LastReadDtm);
             this.Humidity.UpdateValue(parts[4], this.LastReadDtm);
 
+            this.Temperature.Valid = true;
+            this.Humidity.Valid = true;
+
             return true;
+        }
+
+        internal void Reset()
+        {
+            this.LastReadDtm = default;
+            this.LastReadUptime = 0;
+
+            this.Temperature.Reset();
+            this.Humidity.Reset();
         }
     }
 }
