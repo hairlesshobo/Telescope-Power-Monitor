@@ -1061,9 +1061,10 @@ boolean parseConfigValFloat_p(const char *command, float *destination, const cha
         return false;
 
     offset += strlen_P(itemName) + 1;
-    *destination = atof(command + offset);
+    float val = atof(command + offset);
+    *destination = val;
 
-    printConfigEntry_p(Serial, state, itemName, *destination);
+    printConfigEntry_p(Serial, state, itemName, val);
 
     return true;
 }
@@ -1077,9 +1078,10 @@ boolean parseConfigValByte_p(const char *command, uint8_t *destination, const ch
         return false;
 
     offset += strlen_P(itemName) + 1;
-    *destination = atoi(command + offset);
+    uint8_t val = (uint8_t)atoi(command + offset);
+    *destination = val;
 
-    printConfigEntry_p(Serial, state, itemName, (uint32_t)*destination);
+    printConfigEntry_p(Serial, state, itemName, (uint32_t)val);
 
     return true;
 }
@@ -1093,9 +1095,10 @@ boolean parseConfigValShort_p(const char *command, int8_t *destination, const ch
         return false;
 
     offset += strlen_P(itemName) + 1;
-    *destination = (int8_t)atoi(command + offset);
+    int8_t val = (int8_t)atoi(command + offset);
+    *destination = val;
 
-    printConfigEntry_p(Serial, state, itemName, (uint32_t)*destination);
+    printConfigEntry_p(Serial, state, itemName, (int32_t)val);
 
     return true;
 }
@@ -1109,9 +1112,10 @@ boolean parseConfigValInt_p(const char *command, uint16_t *destination, const ch
         return false;
 
     offset += strlen_P(itemName) + 1;
-    *destination = (uint16_t)atol(command + offset);
+    uint16_t val = (uint16_t)atoi(command + offset);
+    *destination = val;
 
-    printConfigEntry_p(Serial, state, itemName, (uint32_t)*destination);
+    printConfigEntry_p(Serial, state, itemName, (uint32_t)val);
 
     return true;
 }
