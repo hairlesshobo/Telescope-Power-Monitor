@@ -941,6 +941,8 @@ void handleSerialCommand(const char *command)
     {
         offset += strlen_P(STR_SET) + 1;
 
+        int8_t returnStat = -1;
+
         if (startsWith_p(command, STR_TIME, offset))
         {
             offset += strlen_P(STR_TIME) + 1;
@@ -948,10 +950,14 @@ void handleSerialCommand(const char *command)
             rtc.adjust(DateTime(command + offset));
         }
 
-        else if (parseConfigValByte_p(command, &config.AverageReadingCount, STR_AVERAGE_READING_COUNT, offset))
-            reallocateArrays();
-        else if (parseConfigValByte_p(command, &config.UpdateFrequency, STR_UPDATE_FREQUENCY, offset)) { }
-        else if (parseConfigValByte_p(command, &config.WriteInterval, STR_WRITE_INTERVAL, offset)) { }
+        else if ((returnStat = parseConfigValByte_p(command, &config.AverageReadingCount, STR_AVERAGE_READING_COUNT, offset)) > 0)
+        {
+            // we only want to reallocate if the size has changed
+            if (returnStat == 2)
+                reallocateArrays();
+        }
+        else if ((returnStat = parseConfigValByte_p(command, &config.UpdateFrequency, STR_UPDATE_FREQUENCY, offset)) > 0) { }
+        else if ((returnStat = parseConfigValByte_p(command, &config.WriteInterval, STR_WRITE_INTERVAL, offset)) > 0) { }
         else if (parseConfigValFloat_p(command, &config.VoltageCalibration, STR_VOLTAGE_CALIBRATION, offset)) { }
         else if (parseConfigValInt_p(command, &config.R1Actual, STR_R1_ACTUAL, offset)) { }
         else if (parseConfigValInt_p(command, &config.R2Actual, STR_R2_ACTUAL, offset)) { }
@@ -960,12 +966,16 @@ void handleSerialCommand(const char *command)
         else if (parseConfigValShort_p(command, &config.AmpDigitalOffset3, STR_AMP_DIGITAL_OFFSET_3, offset)) { }
         else if (parseConfigValFloat_p(command, &config.TemperatureCalibration, STR_TEMPERATURE_CALIBRATION, offset)) { }
         else if (parseConfigValFloat_p(command, &config.HumidityCalibration, STR_HUMIDITY_CALIBRATION, offset)) { }
-        else if (parseConfigValByte_p(command, &config.TargetHumidity, STR_TARGET_HUMIDITY, offset)) { }
-        else if (parseConfigValByte_p(command, &config.HumidityHysterisis, STR_HUMIDITY_HYSTERISIS, offset)) { }
-        else if (parseConfigValByte_p(command, &config.AcBackupPoint, STR_AC_BACKUP_POINT, offset)) { }
-        else if (parseConfigValByte_p(command, &config.AcRecoveredPoint, STR_AC_RECOVERED_POINT, offset)) { }
-        else if (parseConfigValByte_p(command, &config.BatteryCapacityAh, STR_BATTERY_CAPACITY_AH, offset)) 
-            resetSoc();
+        else if ((returnStat = parseConfigValByte_p(command, &config.TargetHumidity, STR_TARGET_HUMIDITY, offset)) > 0) { }
+        else if ((returnStat = parseConfigValByte_p(command, &config.HumidityHysterisis, STR_HUMIDITY_HYSTERISIS, offset)) > 0) { }
+        else if ((returnStat = parseConfigValByte_p(command, &config.AcBackupPoint, STR_AC_BACKUP_POINT, offset)) > 0) { }
+        else if ((returnStat = parseConfigValByte_p(command, &config.AcRecoveredPoint, STR_AC_RECOVERED_POINT, offset)) > 0) { }
+        else if ((returnStat = parseConfigValByte_p(command, &config.BatteryCapacityAh, STR_BATTERY_CAPACITY_AH, offset)) > 0) 
+        {
+            // we only want to reset the SOC if the capacity actually changed
+            if (returnStat == 2)
+                resetSoc();
+        }
         else if (parseConfigValFloat_p(command, &config.BatteryEndingAmps, STR_BATTERY_ENDING_AMPS, offset)) { }
         else if (parseConfigValFloat_p(command, &config.BatteryAbsorbVoltage, STR_BATTERY_ABSORB_VOLTAGE, offset)) { }
         else
@@ -1072,18 +1082,22 @@ boolean parseConfigValFloat_p(const char *command, float *destination, const cha
 /**
  * @brief Parse an incoming serial config byte value
  */
-boolean parseConfigValByte_p(const char *command, uint8_t *destination, const char *itemName, uint8_t offset)
+int8_t parseConfigValByte_p(const char *command, uint8_t *destination, const char *itemName, uint8_t offset)
 {
+    int8_t returnStat = 0;
+    
     if (!startsWith_p(command, itemName, offset))
-        return false;
+        return returnStat;
 
     offset += strlen_P(itemName) + 1;
     uint8_t val = (uint8_t)atoi(command + offset);
+    returnStat = (*destination == val ? 1 : 2);
+
     *destination = val;
 
     printConfigEntry_p(Serial, state, itemName, (uint32_t)val);
 
-    return true;
+    return returnStat;
 }
 
 /**
