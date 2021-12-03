@@ -11,6 +11,7 @@ using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
+using System.Windows.Threading;
 using static FoxHollow.TelescopePowerMonitor.GUI.Properties.Settings;
 
 namespace FoxHollow.TelescopePowerMonitor.GUI
@@ -20,10 +21,26 @@ namespace FoxHollow.TelescopePowerMonitor.GUI
     /// </summary>
     public partial class MainWindow : Window
     {
+        private const int _linesToShow = 50;
+        private const int _tickInterval = 100;
+        private readonly List<string> _logLines = new List<string>();
+        private readonly DispatcherTimer _statusTimer = new DispatcherTimer();
+
+        private readonly SolidColorBrush _connectedColor = new BrushConverter().ConvertFromString("#FF008000") as SolidColorBrush;
+        private readonly SolidColorBrush _disconnectedColor = new BrushConverter().ConvertFromString("#FFF10000") as SolidColorBrush;
+        private readonly SolidColorBrush _readingColor = new BrushConverter().ConvertFromString("#FFF08000") as SolidColorBrush;
+
         public TpmClient TpmClient { get; }
 
         public MainWindow()
-        { 
+        {
+            _statusTimer.Interval = TimeSpan.FromMilliseconds(_tickInterval);
+            _statusTimer.Tick += (source, e) =>
+            {
+                connectionStatusIndicator.Background = _connectedColor;
+                _statusTimer.Stop();
+            };
+
             this.TpmClient = new TpmClient();
             this.TpmClient.OnLogLine += AppendLog;
 
@@ -161,6 +178,8 @@ namespace FoxHollow.TelescopePowerMonitor.GUI
 
                     Default.lastComPort = TpmClient.Port;
                     Default.Save();
+
+                    TpmClient.DumpHistory();
                 }
             }
             catch (SerialPortNotFoundException e)
@@ -182,36 +201,65 @@ namespace FoxHollow.TelescopePowerMonitor.GUI
             button_Connect.Content = "Connect";
         }
 
-        private void WriteLogLine(string line)
+        private void WriteLineToLogFile(string line)
         {
             // Create log directory
             if (!Directory.Exists(Default.logDirectory))
                 Directory.CreateDirectory(Default.logDirectory);
 
-            string logFileName = "BatteryLog_" + DateTime.UtcNow.ToString("yyyy-MM-dd") + ".txt";
+            DateTime now = DateTime.UtcNow;
+
+            if (line.StartsWith("HIST:"))
+            {
+                string dateStr = line.Substring(5, 10);
+                try
+                {
+                    now = DateTime.Parse(dateStr);
+                }
+                catch
+                {
+
+                }
+            }
+
+            string logFileName = "BatteryLog_" + now.ToString("yyyy-MM-dd") + ".txt";
 
             string logPath = Path.Combine(Default.logDirectory, logFileName);
 
-            File.AppendAllText(logPath, line);
+            File.AppendAllText(logPath, line + Environment.NewLine);
         }
 
-        public void AppendLog(string value)
+        public void AppendLog(string newLogLine)
         {
             if (!Dispatcher.CheckAccess())
             {
                 this.Dispatcher.Invoke(() =>
                 {
-                    AppendLog(value);
+                    AppendLog(newLogLine);
                 });
                 
                 return;
             }
-            
-            // TODO: fix the scroll issue here when the TextBox tab isn't active
-            serialLogBlock.AppendText(value + Environment.NewLine);
-            serialLogBlock.ScrollToEnd();
 
-            WriteLogLine(value);
+            // Flash the status indicator
+            connectionStatusIndicator.Background = _readingColor;
+            _statusTimer.Stop();
+            _statusTimer.Start();
+
+            UpdateLogView(newLogLine);
+            WriteLineToLogFile(newLogLine);
+        }
+
+        private void UpdateLogView(string newLogLine)
+        {
+            _logLines.Insert(0, newLogLine);
+
+            int linesToRemove = _logLines.Count - _linesToShow;
+
+            if (linesToRemove > 0)
+                _logLines.RemoveRange(_linesToShow - 1, linesToRemove);
+
+            serialLogBlock.Text = String.Join(Environment.NewLine, _logLines);
         }
 
         private void Controls_enable()
@@ -229,11 +277,13 @@ namespace FoxHollow.TelescopePowerMonitor.GUI
         private void StatusBar_SetConnected()
         {
             connectionStatusBlock.Text = $"Connected to {TpmClient.Port}";
+            connectionStatusIndicator.Background = _connectedColor;
         }
 
         private void StatusBar_SetDisconnected()
         {
             connectionStatusBlock.Text = "Disconnected";
+            connectionStatusIndicator.Background = _disconnectedColor;
         }
 
         private void ComPortList_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -292,9 +342,7 @@ namespace FoxHollow.TelescopePowerMonitor.GUI
             => TpmClient.SaveEEPROM();
 
         private void timeDeltaStatusItem_MouseDoubleClick(object sender, System.Windows.Input.MouseButtonEventArgs e)
-        {
-            TpmClient.UpdateTime();
-        }
+            => TpmClient.UpdateTime();
 
         private void ToggleDehum_MouseDoubleClick(object sender, System.Windows.Input.MouseButtonEventArgs e)
             => this.TpmClient.AutoDehumToggleState();

@@ -9,7 +9,7 @@
         xmlns:xctk="http://schemas.xceed.com/wpf/xaml/toolkit" 
         mc:Ignorable="d"
         Title="Telescope Power Monitor v2" 
-        Height="600" 
+        Height="565" 
         Width="479" 
         Loaded="Window_Loaded" 
         ResizeMode="CanMinimize" 
@@ -24,17 +24,21 @@
         <converters:PercentValueConverter x:Key="PercentValueConverter"/>
         <converters:UptimeConverter x:Key="UptimeConverter"/>
         <converters:SwitchValueConverter x:Key="SwitchValueConverter"/>
-        <converters:SwitchBackgroundConverter x:Key="SwitchBackgroundConverter"/>
+        <converters:SwitchColorConverter x:Key="SwitchColorConverter"/>
         <local:App x:Key="App"/>
     </Window.Resources>
     <DockPanel>
         <StatusBar DockPanel.Dock="Bottom" Height="22">
             <StatusBarItem>
+                <TextBlock x:Name="connectionStatusIndicator" Text="" MinWidth="20" Background="Red" />
+            </StatusBarItem>
+            <Separator Width="1"/>
+            <StatusBarItem>
                 <TextBlock x:Name="connectionStatusBlock" Text="Disconnected" />
             </StatusBarItem>
             <Separator Width="1"/>
             <StatusBarItem x:Name="timeDeltaStatusItem" MouseDoubleClick="timeDeltaStatusItem_MouseDoubleClick">
-                <TextBlock Text="{Binding TpmClient.Status.TimeDelta, FallbackValue=0 seconds, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}, StringFormat=0 seconds}" ToolTip="How accurately the time is set on the device. Positive value indicates that device time is ahead, negatiuve behind. Double click to update device time." />
+                <TextBlock Text="{Binding TpmClient.Status.TimeDelta, FallbackValue=Δ: 0 seconds, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}, StringFormat=Δ: 0 seconds}" ToolTip="How accurately the time is set on the device. Positive value indicates that device time is ahead, negatiuve behind. Double click to update device time." />
             </StatusBarItem>
             <Separator Width="1"/>
             <StatusBarItem HorizontalContentAlignment="Right" Padding="3">
@@ -74,37 +78,9 @@
 
                         <local:AmperageDisplay Grid.Row="3" Grid.Column="0" Title="Solar Amperage" Margin="2,0,0,0" Value="{Binding TpmClient.Power.SolarAmperage, Mode=OneWay}" IsActive="{Binding TpmClient.Connected, Mode=OneWay}"/>
                         <local:AmperageDisplay Grid.Row="3" Grid.Column="1" Title="AC Amperage" Margin="0,0,2,0" Value="{Binding TpmClient.Power.AcAmperage, Mode=OneWay}" IsActive="{Binding TpmClient.Connected, Mode=OneWay}"/>
-                        
-                        <Grid Grid.Row="4" Grid.Column="0" Margin="2,0,0,0">
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="Auto"/>
-                            </Grid.RowDefinitions>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="1*"/>
-                            </Grid.ColumnDefinitions>
-                            <Label Grid.Row="0" Grid.Column="0" Content="Uptime" Background="LightGray" Foreground="Black" FontSize="13" Padding="0,0,0,3" HorizontalContentAlignment="Center" FontWeight="Bold"/>
 
-                            <Rectangle Grid.Row="1" Grid.Column="0" Fill="#FF000000" MinHeight="28" />
-                            <TextBlock Grid.Row="1" Grid.Column="0" Text="{Binding TpmClient.Status.LastReadUptime, Converter={StaticResource UptimeConverter}, FallbackValue=----, Mode=OneWay, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}" FontSize="24" FontWeight="Bold" Foreground="Gray" HorizontalAlignment="Center"/>
-                        </Grid>
-                        
-                        <Grid Grid.Row="4" Grid.Column="1" Margin="0,0,2,0">
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="Auto"/>
-                            </Grid.RowDefinitions>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="1*"/>
-                            </Grid.ColumnDefinitions>
-                            <Label Grid.Row="0" Grid.Column="0" Content="Meow" Background="LightGray" Foreground="Black" FontSize="13" Padding="0,0,0,3" HorizontalContentAlignment="Center" FontWeight="Bold"/>
-
-                            <Rectangle Grid.Row="1" Grid.Column="0" Fill="#FF000000" MinHeight="28" />
-                            <TextBlock Grid.Row="1" Grid.Column="0" Text="{Binding TpmClient.Status.LastReadDtm, FallbackValue=----, Mode=OneWay, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}, StringFormat=\{0:yyyy/MM/dd hh:mm:ss\}}" FontSize="24" FontWeight="Bold" Foreground="Gray" HorizontalAlignment="Center"/>
-                        </Grid>
-
-                        <Grid Grid.Row="5" Grid.ColumnSpan="2" Margin="2,0">
-                            <Grid Grid.Row="5" Grid.Column="0" Margin="2,0">
+                        <Grid Grid.Row="4" Grid.ColumnSpan="2" Margin="2,0">
+                            <Grid Grid.Row="5" Grid.Column="0">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="1*"/>
                                     <ColumnDefinition Width="1*"/>
@@ -123,8 +99,8 @@
                                     </Grid.ColumnDefinitions>
                                     <Label Grid.Row="0" Grid.Column="0" MouseDoubleClick="ToggleDehum_MouseDoubleClick" Content="Dehum EN" Background="LightGray" Foreground="Black" FontSize="13" Padding="0,0,0,3" HorizontalContentAlignment="Center" FontWeight="Bold"/>
 
-                                    <Rectangle Grid.Row="1" Grid.Column="0" Fill="{Binding TpmClient.Status.DehumEnabled, Converter={StaticResource SwitchBackgroundConverter}, FallbackValue=#FF000000, Mode=OneWay, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}" MinHeight="28" />
-                                    <TextBlock Grid.Row="1" Grid.Column="0" Text="{Binding TpmClient.Status.DehumEnabled, Converter={StaticResource SwitchValueConverter}, FallbackValue=----, Mode=OneWay, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}" FontSize="24" FontWeight="Bold" Foreground="Gray" HorizontalAlignment="Center"/>
+                                    <Rectangle Grid.Row="1" Grid.Column="0" Fill="{Binding TpmClient.Status.DehumEnabled, Converter={StaticResource SwitchColorConverter}, FallbackValue=#FF000000, Mode=OneWay, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}" MinHeight="28" />
+                                    <TextBlock Grid.Row="1" Grid.Column="0" Text="{Binding TpmClient.Status.DehumEnabled, Converter={StaticResource SwitchValueConverter}, FallbackValue=----, Mode=OneWay, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}" FontSize="24" FontWeight="Bold" Foreground="{Binding TpmClient.Connected, ConverterParameter=foreground, Converter={StaticResource SwitchColorConverter}, FallbackValue=#FF808080, Mode=OneWay, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}" HorizontalAlignment="Center"/>
                                 </Grid>
 
                                 <Grid Grid.Column="1">
@@ -137,8 +113,8 @@
                                     </Grid.ColumnDefinitions>
                                     <Label Grid.Row="0" Grid.Column="0" Content="Scope" MouseDoubleClick="ToggleScope_MouseDoubleClick" Background="LightGray" Foreground="Black" FontSize="13" Padding="0,0,0,3" HorizontalContentAlignment="Center" FontWeight="Bold"/>
 
-                                    <Rectangle Grid.Row="1" Grid.Column="0" Fill="{Binding TpmClient.Status.TelescopeOutState, Converter={StaticResource SwitchBackgroundConverter}, FallbackValue=#FF000000, Mode=OneWay, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}" MinHeight="28" />
-                                    <TextBlock Grid.Row="1" Grid.Column="0" Text="{Binding TpmClient.Status.TelescopeOutState, Converter={StaticResource SwitchValueConverter}, FallbackValue=----, Mode=OneWay, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}" FontSize="24" FontWeight="Bold" Foreground="Gray" HorizontalAlignment="Center"/>
+                                    <Rectangle Grid.Row="1" Grid.Column="0" Fill="{Binding TpmClient.Status.TelescopeOutState, Converter={StaticResource SwitchColorConverter}, FallbackValue=#FF000000, Mode=OneWay, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}" MinHeight="28" />
+                                    <TextBlock Grid.Row="1" Grid.Column="0" Text="{Binding TpmClient.Status.TelescopeOutState, Converter={StaticResource SwitchValueConverter}, FallbackValue=----, Mode=OneWay, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}" FontSize="24" FontWeight="Bold" Foreground="{Binding TpmClient.Connected, ConverterParameter=foreground, Converter={StaticResource SwitchColorConverter}, FallbackValue=#FF808080, Mode=OneWay, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}" HorizontalAlignment="Center"/>
                                 </Grid>
 
                                 <Grid Grid.Column="2">
@@ -151,8 +127,8 @@
                                     </Grid.ColumnDefinitions>
                                     <Label Grid.Row="0" Grid.Column="0" Content="Dehumidifier" MouseDoubleClick="ToggleDehumidifier_MouseDoubleClick" Background="LightGray" Foreground="Black" FontSize="13" Padding="0,0,0,3" HorizontalContentAlignment="Center" FontWeight="Bold"/>
 
-                                    <Rectangle Grid.Row="1" Grid.Column="0" Fill="{Binding TpmClient.Status.DehumOutState, Converter={StaticResource SwitchBackgroundConverter}, FallbackValue=#FF000000, Mode=OneWay, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}" MinHeight="28" />
-                                    <TextBlock Grid.Row="1" Grid.Column="0" Text="{Binding TpmClient.Status.DehumOutState, Converter={StaticResource SwitchValueConverter}, FallbackValue=----, Mode=OneWay, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}" FontSize="24" FontWeight="Bold" Foreground="Gray" HorizontalAlignment="Center"/>
+                                    <Rectangle Grid.Row="1" Grid.Column="0" Fill="{Binding TpmClient.Status.DehumOutState, Converter={StaticResource SwitchColorConverter}, FallbackValue=#FF000000, Mode=OneWay, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}" MinHeight="28" />
+                                    <TextBlock Grid.Row="1" Grid.Column="0" Text="{Binding TpmClient.Status.DehumOutState, Converter={StaticResource SwitchValueConverter}, FallbackValue=----, Mode=OneWay, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}" FontSize="24" FontWeight="Bold" Foreground="{Binding TpmClient.Connected, ConverterParameter=foreground, Converter={StaticResource SwitchColorConverter}, FallbackValue=#FF808080, Mode=OneWay, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}" HorizontalAlignment="Center"/>
                                 </Grid>
 
                                 <Grid Grid.Column="3">
@@ -165,8 +141,8 @@
                                     </Grid.ColumnDefinitions>
                                     <Label Grid.Row="0" Grid.Column="0" Content="Aux 1" MouseDoubleClick="ToggleAux1_MouseDoubleClick" Background="LightGray" Foreground="Black" FontSize="13" Padding="0,0,0,3" HorizontalContentAlignment="Center" FontWeight="Bold"/>
 
-                                    <Rectangle Grid.Row="1" Grid.Column="0" Fill="{Binding TpmClient.Status.Aux1OutState, Converter={StaticResource SwitchBackgroundConverter}, FallbackValue=#FF000000, Mode=OneWay, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}" MinHeight="28" />
-                                    <TextBlock Grid.Row="1" Grid.Column="0" Text="{Binding TpmClient.Status.Aux1OutState, Converter={StaticResource SwitchValueConverter}, FallbackValue=----, Mode=OneWay, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}" FontSize="24" FontWeight="Bold" Foreground="Gray" HorizontalAlignment="Center"/>
+                                    <Rectangle Grid.Row="1" Grid.Column="0" Fill="{Binding TpmClient.Status.Aux1OutState, Converter={StaticResource SwitchColorConverter}, FallbackValue=#FF000000, Mode=OneWay, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}" MinHeight="28" />
+                                    <TextBlock Grid.Row="1" Grid.Column="0" Text="{Binding TpmClient.Status.Aux1OutState, Converter={StaticResource SwitchValueConverter}, FallbackValue=----, Mode=OneWay, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}" FontSize="24" FontWeight="Bold" Foreground="{Binding TpmClient.Connected, ConverterParameter=foreground, Converter={StaticResource SwitchColorConverter}, FallbackValue=#FF808080, Mode=OneWay, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}" HorizontalAlignment="Center"/>
                                 </Grid>
 
                                 <Grid Grid.Column="4">
@@ -179,11 +155,26 @@
                                     </Grid.ColumnDefinitions>
                                     <Label Grid.Row="0" Grid.Column="0" Content="AC" MouseDoubleClick="ToggleAc_MouseDoubleClick" Background="LightGray" Foreground="Black" FontSize="13" Padding="0,0,0,3" HorizontalContentAlignment="Center" FontWeight="Bold"/>
 
-                                    <Rectangle Grid.Row="1" Grid.Column="0" Fill="{Binding TpmClient.Status.AcInState, Converter={StaticResource SwitchBackgroundConverter}, FallbackValue=#FF000000, Mode=OneWay, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}" MinHeight="28" />
-                                    <TextBlock Grid.Row="1" Grid.Column="0" Text="{Binding TpmClient.Status.AcInState, Converter={StaticResource SwitchValueConverter}, FallbackValue=----, Mode=OneWay, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}" FontSize="24" FontWeight="Bold" Foreground="Gray" HorizontalAlignment="Center"/>
+                                    <Rectangle Grid.Row="1" Grid.Column="0" Fill="{Binding TpmClient.Status.AcInState, Converter={StaticResource SwitchColorConverter}, FallbackValue=#FF000000, Mode=OneWay, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}" MinHeight="28" />
+                                    <TextBlock Grid.Row="1" Grid.Column="0" Text="{Binding TpmClient.Status.AcInState, Converter={StaticResource SwitchValueConverter}, FallbackValue=----, Mode=OneWay, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}" FontSize="24" FontWeight="Bold" Foreground="{Binding TpmClient.Connected, ConverterParameter=foreground, Converter={StaticResource SwitchColorConverter}, FallbackValue=#FF808080, Mode=OneWay, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}" HorizontalAlignment="Center"/>
                                 </Grid>
                             </Grid>
 
+
+                        </Grid>
+
+                        <Grid Grid.Row="5" Grid.ColumnSpan="2" Margin="2,0,2,0">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="1*"/>
+                            </Grid.ColumnDefinitions>
+                            <Label Grid.Row="0" Grid.Column="0" Content="Uptime" Background="LightGray" Foreground="Black" FontSize="13" Padding="0,0,0,3" HorizontalContentAlignment="Center" FontWeight="Bold"/>
+
+                            <Rectangle Grid.Row="1" Grid.Column="0" Fill="#FF000000" MinHeight="28" />
+                            <TextBlock Grid.Row="1" Grid.Column="0" Text="{Binding TpmClient.Status.LastReadUptime, Converter={StaticResource UptimeConverter}, FallbackValue=----, Mode=OneWay, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}" FontSize="24" FontWeight="Bold" Foreground="Gray" HorizontalAlignment="Center"/>
                         </Grid>
 
 
@@ -370,7 +361,7 @@
                                 <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
                             <Label Grid.Column="0" Content="AC Recovered Point: " Margin="0,5,0,0" FontWeight="Bold" Width="140"/>
-                            <Slider Grid.Column="1" Maximum="100" TickPlacement="BottomRight" Value="{Binding TpmClient.DeviceConfig.AcRecoveredPoint, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}" IsSnapToTickEnabled="True" LargeChange="10" Margin="0,6,5,0" SmallChange="5" IsEnabled="{Binding TpmClient.DeviceConfig.EepromRead, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}"/>
+                            <Slider Grid.Column="1" Maximum="101" TickPlacement="BottomRight" Value="{Binding TpmClient.DeviceConfig.AcRecoveredPoint, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}" IsSnapToTickEnabled="True" LargeChange="10" Margin="0,6,5,0" SmallChange="5" IsEnabled="{Binding TpmClient.DeviceConfig.EepromRead, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}"/>
                             <Label Grid.Column="2" MinWidth="30" Content="{Binding TpmClient.DeviceConfig.AcRecoveredPoint, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type local:MainWindow}}}" FontSize="16" FontFamily="Consolas" Margin="5,0" HorizontalContentAlignment="Right"/>
                         </Grid>
 

@@ -21,7 +21,7 @@ namespace FoxHollow.TelescopePowerMonitor.GUI
             => $"{input:00.0}v";
 
         internal static string FormatAmperage(float input)
-            => $"{input:0.00}A";
+            => $"{input:0.0}A";
 
         internal static string FormatPercentage(float input)
             => $"{input:0}%";

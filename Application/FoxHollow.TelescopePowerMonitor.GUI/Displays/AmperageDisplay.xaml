@@ -20,7 +20,7 @@
 
         <Rectangle Grid.Row="1" Grid.Column="0" Fill="#FF000000" MinHeight="28" />
         <TextBlock Grid.Row="1" Grid.Column="0" Name="Current" Text="----" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,-4,75,0" FontSize="48" FontWeight="Bold" Foreground="White"/>
-        <TextBlock Grid.Row="1" Grid.Column="0" Name="Maximum" Text="----" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,2,5,0" FontSize="20" FontWeight="Bold" Foreground="White"/>
-        <TextBlock Grid.Row="1" Grid.Column="0" Name="Minimum" Text="----" HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,5,2" FontSize="20" FontWeight="Bold" Foreground="White"/>
+        <TextBlock Grid.Row="1" Grid.Column="0" Name="Maximum" Text="----" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,6,5,0" FontSize="16" FontWeight="Bold" Foreground="White"/>
+        <TextBlock Grid.Row="1" Grid.Column="0" Name="Minimum" Text="----" HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,5,6" FontSize="16" FontWeight="Bold" Foreground="White"/>
     </Grid>
 </UserControl>

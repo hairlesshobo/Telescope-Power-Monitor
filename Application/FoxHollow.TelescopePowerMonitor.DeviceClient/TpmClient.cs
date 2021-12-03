@@ -178,6 +178,9 @@ namespace FoxHollow.TelescopePowerMonitor.DeviceClient
 
                     OnLogLine(line);
 
+                    if (line.StartsWith("HIST:"))
+                        return;
+
                     if (this.Power.ParseLogLine(line))
                         OnPowerChanged(this.Power);
 
@@ -300,6 +303,9 @@ namespace FoxHollow.TelescopePowerMonitor.DeviceClient
             string timeStr = DateTimeOffset.UtcNow.AddMilliseconds(250).ToString("yyyy-MM-ddTHH:mm:ss");
             this.WriteToDevice($"SET TIME {timeStr}");
         }
+
+        public void DumpHistory()
+            => this.WriteToDevice("READ");
 
         string GetOnOffState(bool status) => (status ? "ON" : "OFF");
 

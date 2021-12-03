@@ -12,7 +12,7 @@
 
     <UserControl.Resources>
         <Converters:SwitchValueConverter x:Key="SwitchValueConverter"/>
-        <Converters:SwitchBackgroundConverter x:Key="SwitchBackgroundConverter"/>
+        <Converters:SwitchColorConverter x:Key="SwitchBackgroundConverter"/>
     </UserControl.Resources>
 
     <Grid Grid.Row="0" Grid.Column="0" DataContext="{Binding ElementName=Root}">
@@ -26,6 +26,6 @@
         <Label Grid.Row="0" Grid.Column="0" Content="{Binding Title, FallbackValue=Title, Mode=OneWay}" Height="20" Background="LightGray" Foreground="Black" FontSize="13" Padding="0,0,0,3" HorizontalContentAlignment="Center" FontWeight="Bold"/>
 
         <Rectangle Grid.Row="1" Grid.Column="0" Fill="{Binding State, Converter={StaticResource SwitchBackgroundConverter}, FallbackValue=#FF000000, Mode=OneWay}" MinHeight="28" />
-        <TextBlock Grid.Row="1" Grid.Column="0" Text="{Binding State, Converter={StaticResource SwitchValueConverter}, FallbackValue=----, Mode=OneWay}" FontSize="24" FontWeight="Bold" Foreground="Gray" HorizontalAlignment="Center"/>
+        <TextBlock Grid.Row="1" Grid.Column="0" Text="{Binding State, Converter={StaticResource SwitchValueConverter}, FallbackValue=----, Mode=OneWay}" FontSize="22" FontWeight="Bold" Foreground="Gray" HorizontalAlignment="Center"/>
     </Grid>
 </UserControl>
