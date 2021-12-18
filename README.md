@@ -16,25 +16,14 @@ List of changes can be found in the [changelog](changelog.md).
 
 
 ## To-Do List
-* Add temperature/humidity sensor [+`Firmware`, +`Hardware`, -`GUI`]
-    * Add QC check for temp/humidity readings
-* Power from 12vdc instead of USB [+`Hardware`] 
-* Add relay to control dehumidifier [+`Firmware`, +`Hardware`, `GUI`] 
-* Add relay to control telescope [+`Firmware`, +`Hardware`, `GUI`]
-* Add humidity set point [+`Firmware`] 
 * Add emergency battery shutoff voltage (power down PC, turn off dehumidifier and telescope) [`Firmware`, `GUI`] 
-* Add amp meter for solar input [+`Firmware`, +`Hardware`] 
-* Add amp meter for load [+`Firmware`, +`Hardware`] 
-* Implement capacity tracking [`Firmware`] 
 * Add JSON API webserver [`GUI`]
 * Add an "imaging" mode that disables dehumidifier and emergency shutoff [`Firmware`, `GUI`]
 * Add config QC checks [`Firmware`]
 
 
 ### Ideas that may be implemented in the future
-* Add SD logging
 * Switch to ethernet board
-* Add relay for emergency AC power source
 * Add voltage sensor for solar input
 
 
