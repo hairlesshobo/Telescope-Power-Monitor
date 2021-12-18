@@ -181,6 +181,10 @@ namespace FoxHollow.TelescopePowerMonitor.DeviceClient
                     if (line.StartsWith("HIST:"))
                         return;
 
+                    // lines with () are TRACE lines that do not need to be parsed
+                    if (line.Contains("()"))
+                        return;
+
                     if (this.Power.ParseLogLine(line))
                         OnPowerChanged(this.Power);
 
