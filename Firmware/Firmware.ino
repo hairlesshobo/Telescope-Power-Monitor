@@ -176,6 +176,7 @@
 #define SOC_STORE_FREQUENCY_SECONDS 30
 
 // #define OVERWRITE_EEPROM
+#define TRACE
 
 //========================================================================
 #pragma endregion
@@ -546,6 +547,10 @@ void processSerialInput()
     // print the string when a newline arrives:
     if (stringComplete)
     {
+#ifdef TRACE
+        Serial.println(F("processSerialInput()"));
+#endif // TRACE
+
         handleSerialCommand(serialInput);
 
         // clear the string:
@@ -563,6 +568,10 @@ void updateClock()
     // update the clock and print the system status
     if (state.LastTick == 0 || (uint32_t)(millis() - state.LastTick) >= 1000)
     {
+#ifdef TRACE
+        Serial.println(F("updateClock()"));
+#endif // TRACE
+
         updateDtm();
         printSystemStatus(getPrintTarget(), state, config);
         flushLog();
@@ -578,6 +587,10 @@ void readPowerSensors()
 {
     if (state.LastReadTime == 0 || (uint32_t)(millis() - state.LastReadTime) >= (1000 / config.UpdateFrequency))
     {
+// #ifdef TRACE
+//         Serial.println(F("readPowerSensors()"));
+// #endif // TRACE
+
         pushReading(volts, getVoltage(PIN_VOLTAGE));
         pushReading(amps_battery, getAmperage(PIN_BATT_AMPERAGE, config.AmpDigitalOffset1));
         pushReading(amps_load, (getAmperage(PIN_LOAD_AMPERAGE, config.AmpDigitalOffset2)*-1));
@@ -617,6 +630,10 @@ void readEnvSensors()
 {
     if (state.LastDhtReadTime == 0 || (uint32_t)(millis() - state.LastDhtReadTime) >= ENV_WRITE_DELAY)
     {
+#ifdef TRACE
+        Serial.println(F("readEnvSensors()"));
+#endif // TRACE
+
         readDht(PIN_DHT, &state.Temperature, &state.Humidity);
         printEnvironmentStatus(getPrintTarget(), state, config);
         flushLog();
@@ -633,6 +650,9 @@ void checkHumidity()
     // if humidity control is disabled, but the output is currently on
     if (state.DehumEnabled == false && state.DehumOutState == true)
     {
+#ifdef TRACE
+        Serial.println(F("checkHumidity(): 1"));
+#endif // TRACE
         setRelayState(&state.DehumOutState, PIN_DEHUMIDIFIER_OUTPUT_RELAY, false);
         state.DehumCurrentStateSeconds = 0;
     }
@@ -647,16 +667,26 @@ void checkHumidity()
 
     if (state.LastHumidityCheckTime == 0 || (uint32_t)(millis() - state.LastHumidityCheckTime) > HUMIDITY_CHECK_DELAY)
     {
+#ifdef TRACE
+        Serial.println(F("checkHumidity(): 2"));
+#endif // TRACE
         uint8_t onThreshold = config.TargetHumidity + (config.HumidityHysterisis / 2);
         uint8_t offThreshold = config.TargetHumidity - (config.HumidityHysterisis / 2);
 
         if (state.Humidity >= onThreshold && !state.DehumOutState)
         {
+#ifdef TRACE
+            Serial.println(F("checkHumidity(): 3"));
+#endif // TRACE
             setRelayState(&state.DehumOutState, PIN_DEHUMIDIFIER_OUTPUT_RELAY, true);
             state.DehumCurrentStateSeconds = 0;
         }
         else if (state.Humidity <= offThreshold && state.DehumOutState)
         {
+#ifdef TRACE
+            Serial.println(F("checkHumidity(): 4"));
+#endif // TRACE
+
             setRelayState(&state.DehumOutState, PIN_DEHUMIDIFIER_OUTPUT_RELAY, false);
             state.DehumCurrentStateSeconds = 0;
         }
@@ -686,6 +716,10 @@ void checkBattery()
     //
     if (state.LastBatteryCheckTime == 0 || (uint32_t)(millis() - state.LastBatteryCheckTime) >= (config.AverageReadingCount/config.UpdateFrequency) * 1000)
     {
+#ifdef TRACE
+        Serial.println(F("checkBattery(): 1"));
+#endif // TRACE
+
         uint32_t updateMillis = millis();
         uint32_t elapsed = updateMillis - state.LastBatteryCheckTime;
         float factor = (elapsed / (float)3600000) * 10000000.0;
@@ -712,13 +746,23 @@ void checkBattery()
 
         if (state.BatteryCurrentStateSeconds > BATTERY_CHANGE_MIN_SECOND)
         {
+#ifdef TRACE
+        Serial.println(F("checkBattery(): 2"));
+#endif // TRACE
             if (!state.AcInState && state.BatterySoc < config.AcBackupPoint)
             {
+#ifdef TRACE
+                Serial.println(F("checkBattery(): 3"));
+#endif // TRACE
                 setRelayState(&state.AcInState, PIN_AC_INPUT_RELAY, true);
                 state.BatteryCurrentStateSeconds = 0;
             }
             else if (state.AcInState && state.BatterySoc >= config.AcRecoveredPoint)
             {
+#ifdef TRACE
+                Serial.println(F("checkBattery(): 4"));
+#endif // TRACE
+
                 setRelayState(&state.AcInState, PIN_AC_INPUT_RELAY, false);
                 state.BatteryCurrentStateSeconds = 0;
             }
@@ -733,6 +777,10 @@ void writeSocToSd()
     // our timer has elapsed.. lets store the current value
     if ((uint32_t)(millis() - state.LastBatterySnapshotTime) >= (SOC_STORE_FREQUENCY_SECONDS * 1000))
     {
+#ifdef TRACE
+        Serial.println(F("writeSocToSd()"));
+#endif // TRACE
+
         bool needToCloseLogfile = (logFile == true);
 
         if (needToCloseLogfile)
@@ -1242,6 +1290,9 @@ void pushReading(float *readingArray, float newValue)
  */
 void updateDtm()
 {
+#ifdef TRACE
+        Serial.println(F("updateDtm()"));
+#endif // TRACE
     *state.CurrentDtm = rtc.now();
 
     // TODO: is there a way to set an alarm on the RTC and then read it in software to see if it has triggered.. to ensure 1 second has actually passed vs using millis()
@@ -1327,6 +1378,10 @@ float getAmperage(int pin, int offset)
  */
 void readDht(int pin, float *temp, float *hum)
 {
+#ifdef TRACE
+        Serial.println(F("readDht()"));
+#endif // TRACE
+
     dht.read2(temp, hum, NULL);
 }
 
@@ -1465,6 +1520,10 @@ void openLogFile(bool log, bool overwrite)
 {
     if (logFile)
         return;
+
+#ifdef TRACE
+    Serial.println(F("openLogFile()"));
+#endif // TRACE
     
     if (log == true)
     {
@@ -1493,6 +1552,9 @@ void openLogFile(bool log, bool overwrite)
 
 void setLogFileName(bool useSocLog)
 {
+#ifdef TRACE
+    Serial.println(F("setLogFileName()"));
+#endif // TRACE
     memset(logFileName, '\0', sizeof(logFileName));
 
     if (useSocLog)
@@ -1508,6 +1570,10 @@ void closeLogFile(bool log)
 {
     if (logFile)
     {
+#ifdef TRACE
+        Serial.println(F("closeLogFile()"));
+#endif // TRACE
+
         if (log == true)
         {
             printCommandHeader(Serial, state);
